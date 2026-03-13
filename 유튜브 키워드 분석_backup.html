@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Analyzer: Infinity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            400: '#FBBF24',
+                            500: '#F59E0B',
+                            600: '#D97706',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #EF4444;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .date-btn.active {
+            background-color: #EF4444;
+            color: white;
+            border-color: #EF4444;
+        }
+
+        th {
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+
+        th:hover {
+            background-color: #f3f4f6;
+        }
+
+        th.active-sort {
+            background-color: #eff6ff;
+            color: #2563eb;
+        }
+
+        th.active-sort i {
+            opacity: 1 !important;
+        }
+
+        /* Dark Mode Styles */
+        .dark body {
+            background-color: #111827;
+            color: #e5e7eb;
+        }
+
+        .dark .glass-panel {
+            background: rgba(31, 41, 55, 0.95);
+            border-color: #374151;
+        }
+
+        .dark header {
+            background-color: #1f2937;
+            border-color: #374151;
+        }
+
+        .dark h1 {
+            color: #f3f4f6;
+        }
+
+        .dark .bg-white {
+            background-color: #1f2937;
+        }
+
+        .dark .bg-gray-50 {
+            background-color: #111827;
+        }
+
+        .dark .bg-gray-100 {
+            background-color: #374151;
+        }
+
+        .dark .text-gray-900 {
+            color: #f3f4f6;
+        }
+
+        .dark .text-gray-800 {
+            color: #e5e7eb;
+        }
+
+        .dark .text-gray-700 {
+            color: #d1d5db;
+        }
+
+        .dark .text-gray-600 {
+            color: #9ca3af;
+        }
+
+        .dark .text-gray-500 {
+            color: #9ca3af;
+        }
+
+        .dark .border-gray-200 {
+            border-color: #374151;
+        }
+
+        .dark .border-gray-300 {
+            border-color: #4b5563;
+        }
+
+        .dark input,
+        .dark select {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: #e5e7eb;
+        }
+
+        .dark input::placeholder {
+            color: #9ca3af;
+        }
+
+        .dark th {
+            background-color: #374151;
+            color: #d1d5db;
+        }
+
+        .dark th:hover {
+            background-color: #4b5563;
+        }
+
+        .dark td {
+            border-color: #374151;
+        }
+
+        .dark tr:hover {
+            background-color: #374151;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col">
+
+    <!-- Header -->
+    <header
+        class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-200 dark:border-gray-700 dark:bg-gray-900/80 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-r from-red-600 to-orange-600 text-white p-1.5 rounded-lg shadow-lg">
+                    <i class="fa-brands fa-youtube text-xl"></i>
+                </div>
+                <h1
+                    class="text-xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 hidden sm:block">
+                    Storm <span class="text-red-600">Signature</span> Edition
+                </h1>
+                <span
+                    class="text-[10px] bg-gradient-to-r from-gold-400 to-gold-600 text-white px-2 py-0.5 rounded-full shadow-sm font-bold tracking-wider uppercase">Premium</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="toggleDarkMode()"
+                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition text-xl">
+                    <i class="fa-solid fa-moon" id="darkModeIcon"></i>
+                </button>
+                <span id="apiKeyStatus" class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-500 font-medium">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>키 미설정
+                </span>
+                <button onclick="toggleSettings()"
+                    class="text-gray-500 hover:text-gray-700 transition text-sm border px-3 py-1.5 rounded hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300">
+                    <i class="fa-solid fa-gear mr-1"></i> 설정
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full" id="reportContent">
+
+        <!-- Settings Panel -->
+        <div id="settingsPanel" class="hidden mb-6 glass-panel rounded-xl p-6 shadow-sm">
+            <h3 class="font-bold text-lg mb-4 flex items-center text-gray-800">
+                <i class="fa-solid fa-key text-yellow-500 mr-2"></i>API 키 설정
+            </h3>
+            <div class="flex gap-2 mb-2">
+                <input type="password" id="apiKeyInput" placeholder="YouTube Data API Key 입력"
+                    class="flex-grow border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-red-500 transition">
+                <button onclick="saveApiKey()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition">저장</button>
+                <button onclick="clearApiKey()"
+                    class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm font-medium transition">삭제</button>
+            </div>
+            <p class="text-xs text-gray-500">
+                * API 키는 브라우저(Local Storage)에만 저장됩니다.<br>
+                * 키가 없으면 데모 모드(가상 데이터)로 동작합니다.
+            </p>
+        </div>
+
+        <!-- Search & Filter -->
+        <div class="glass-panel rounded-xl p-6 shadow-sm mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <!-- Keyword -->
+                <div class="md:col-span-4">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">검색 키워드</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="keywordInput" placeholder="예: 아이폰15, 여행 브이로그"
+                            class="w-full border border-gray-300 rounded pl-10 pr-3 py-2.5 focus:outline-none focus:border-red-500 transition shadow-sm"
+                            onkeypress="if(event.key==='Enter') startAnalysis()">
+                    </div>
+                </div>
+
+                <!-- Count -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">수집 개수</label>
+                    <input type="number" id="maxResultsInput" value="50" min="10" max="500"
+                        class="w-full border border-gray-300 rounded px-3 py-2.5 focus:outline-none focus:border-red-500 transition shadow-sm text-center">
+                </div>
+
+                <!-- Date Range -->
+                <div class="md:col-span-4">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">기간 설정</label>
+                    <div class="flex gap-2">
+                        <input type="date" id="startDate"
+                            class="w-1/2 border border-gray-300 rounded px-2 py-2.5 text-xs focus:outline-none focus:border-red-500 transition shadow-sm">
+                        <input type="date" id="endDate"
+                            class="w-1/2 border border-gray-300 rounded px-2 py-2.5 text-xs focus:outline-none focus:border-red-500 transition shadow-sm">
+                    </div>
+                    <div class="flex gap-1 mt-1.5" id="dateButtons">
+                        <button onclick="setRelativeDate(1, this)"
+                            class="date-btn active text-[10px] px-2 py-0.5 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition">1개월</button>
+                        <button onclick="setRelativeDate(3, this)"
+                            class="date-btn text-[10px] px-2 py-0.5 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition">3개월</button>
+                        <button onclick="setRelativeDate(6, this)"
+                            class="date-btn text-[10px] px-2 py-0.5 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition">6개월</button>
+                        <button onclick="setRelativeDate(12, this)"
+                            class="date-btn text-[10px] px-2 py-0.5 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition">1년</button>
+                        <button onclick="resetDateRange(this)"
+                            class="date-btn text-[10px] px-2 py-0.5 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition">전체</button>
+                    </div>
+                </div>
+
+                <!-- Region -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">국가</label>
+                    <select id="regionCode"
+                        class="w-full border border-gray-300 rounded px-3 py-2.5 focus:outline-none focus:border-red-500 transition shadow-sm bg-white">
+                        <option value="KR" selected>🇰🇷 한국</option>
+                        <option value="US">🇺🇸 미국</option>
+                        <option value="JP">🇯🇵 일본</option>
+                        <option value="VN">🇻🇳 베트남</option>
+                        <option value="IN">🇮🇳 인도</option>
+                        <option value="">🌍 전세계</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="mt-4 flex gap-3">
+                <button onclick="startAnalysis()"
+                    class="flex-grow bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition transform active:scale-[0.99] flex items-center justify-center text-lg ring-2 ring-offset-2 ring-red-500 dark:ring-offset-gray-900">
+                    <i class="fa-solid fa-bolt mr-2 animate-pulse"></i> 분석 시작
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Summary -->
+        <div id="statsSection" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div
+                class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center">
+                <span class="text-xs text-gray-500 dark:text-gray-400 mb-1">수집 영상</span>
+                <span id="statTotal" class="text-xl font-bold text-gray-800 dark:text-white">-</span>
+            </div>
+            <div
+                class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center">
+                <span class="text-xs text-gray-500 dark:text-gray-400 mb-1">평균 조회수</span>
+                <span id="statAvgView" class="text-xl font-bold text-blue-600 dark:text-blue-400">-</span>
+            </div>
+            <div
+                class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center">
+                <span class="text-xs text-gray-500 dark:text-gray-400 mb-1">평균 VPH</span>
+                <span id="statAvgVPH" class="text-xl font-bold text-purple-600 dark:text-purple-400">-</span>
+            </div>
+            <div
+                class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center">
+                <span class="text-xs text-gray-500 dark:text-gray-400 mb-1">평균 길이</span>
+                <span id="statAvgDuration" class="text-xl font-bold text-green-600 dark:text-green-400">-</span>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden flex flex-col items-center justify-center py-12">
+            <div class="loading-spinner mb-4"></div>
+            <p id="loadingText" class="text-gray-500 text-sm font-medium">데이터 분석 중...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState"
+            class="hidden flex flex-col items-center justify-center py-10 bg-white rounded-xl border border-gray-200 mb-6">
+            <i class="fa-solid fa-filter text-gray-300 text-4xl mb-3"></i>
+            <p class="text-gray-600 font-medium">조건에 맞는 영상이 없습니다.</p>
+            <p class="text-gray-400 text-sm mt-1">필터를 완화하거나 키워드를 변경해보세요.</p>
+        </div>
+
+        <!-- Visualization Section -->
+        <div id="vizSection" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Tags -->
+            <div
+                class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                <h3 class="font-bold text-gray-800 dark:text-white mb-4 flex items-center">
+                    <i class="fa-solid fa-tags text-pink-500 mr-2"></i> 황금 키워드 (Top Tags)
+                </h3>
+                <div id="tagCloud" class="w-full h-64 relative">
+                    <!-- Canvas injected here -->
+                </div>
+            </div>
+            <!-- Charts -->
+            <div
+                class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                <h3 class="font-bold text-gray-800 dark:text-white mb-4 flex items-center">
+                    <i class="fa-solid fa-chart-line text-blue-500 mr-2"></i> 데이터 인사이트
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-64">
+                    <div class="relative h-full w-full">
+                        <canvas id="scatterChart"></canvas>
+                    </div>
+                    <div class="relative h-full w-full">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Table -->
+        <div id="resultSection"
+            class="hidden bg-white rounded-xl shadow-lg border border-gray-200 flex-grow flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div class="flex items-center gap-2">
+                    <h2 class="font-bold text-gray-800"><i class="fa-solid fa-list-ol mr-2 text-indigo-500"></i>분석 결과
+                    </h2>
+                    <!-- Instant Filters -->
+                    <div class="flex gap-2 ml-4">
+                        <select id="subFilter" onchange="applyInstantFilter()"
+                            class="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none bg-white">
+                            <option value="all">구독자 전체</option>
+                            <option value="10000">1만명 이하</option>
+                            <option value="50000">5만명 이하</option>
+                            <option value="100000">10만명 이하</option>
+                        </select>
+                        <select id="durationFilter" onchange="applyInstantFilter()"
+                            class="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none bg-white">
+                            <option value="all">길이 전체</option>
+                            <option value="shorts">쇼츠 (1분 미만)</option>
+                            <option value="short">짧은 영상 (1~5분)</option>
+                            <option value="medium">중간 영상 (5~20분)</option>
+                            <option value="long">긴 영상 (20분 이상)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-2 text-sm text-gray-500 items-center">
+                    <span id="currentRegionBadge" class="bg-gray-100 px-2 py-1 rounded text-xs font-bold">KR</span>
+                    <span class="text-gray-300">|</span>
+                    <button onclick="exportToPdf()"
+                        class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm transition">
+                        <i class="fa-solid fa-file-pdf mr-1"></i> PDF
+                    </button>
+                    <button onclick="downloadExcel()"
+                        class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded shadow-sm transition">
+                        <i class="fa-solid fa-file-excel mr-1"></i> Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-auto flex-grow">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th id="th-rank" class="px-4 py-3 text-center w-12" onclick="setSort('rank')">
+                                # <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th class="px-4 py-3 w-28">썸네일</th>
+                            <th class="px-4 py-3 min-w-[200px]">영상 정보 / 성향</th>
+                            <th id="th-potential" class="px-4 py-3 text-center w-20" onclick="setSort('potential')">
+                                점수 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-duration" class="px-4 py-3 text-center w-20" onclick="setSort('duration')">
+                                길이 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-views" class="px-4 py-3 text-right w-24" onclick="setSort('views')">
+                                조회수 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-vph" class="px-4 py-3 text-right w-24" onclick="setSort('vph')">
+                                VPH <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-subs" class="px-4 py-3 text-right w-24" onclick="setSort('subs')">
+                                구독자 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-date" class="px-4 py-3 text-center w-24" onclick="setSort('date')">
+                                게시일 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-likes" class="px-4 py-3 text-right w-20" onclick="setSort('likes')">
+                                좋아요 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-comments" class="px-4 py-3 text-right w-20" onclick="setSort('comments')">
+                                댓글 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                            <th id="th-engagement" class="px-4 py-3 text-right w-20" onclick="setSort('engagement')">
+                                참여도 <i class="fa-solid fa-sort text-gray-300 text-xs ml-1"></i>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultTableBody" class="divide-y divide-gray-100">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // =========================================================================
+        // [사용자 설정 영역]
+        const HARDCODED_API_KEY = "";
+        // =========================================================================
+
+        let apiKey = "";
+        let originalData = [];
+        let filteredData = [];
+
+        let currentSort = {
+            key: 'rank',
+            direction: 'asc'
+        };
+
+        const categoryMap = {
+            1: "영화/애니", 2: "자동차", 10: "음악", 15: "동물", 17: "스포츠", 18: "영화",
+            19: "여행/이벤트", 20: "게임", 21: "브이로그", 22: "인물/블로그", 23: "코미디",
+            24: "엔터테인먼트", 25: "뉴스/정치", 26: "노하우/스타일", 27: "교육", 28: "과학/기술",
+            29: "비영리", 30: "영화", 31: "애니메이션", 32: "액션", 33: "클래식", 34: "코미디",
+            35: "다큐", 36: "드라마", 37: "가족", 38: "외국어", 39: "공포", 40: "SF",
+            41: "스릴러", 42: "쇼츠", 43: "쇼", 44: "예고편"
+        };
+
+        window.onload = function () {
+            setRelativeDate(1, document.querySelector('#dateButtons button:first-child'));
+            checkApiKey();
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.documentElement.classList.add('dark');
+                document.getElementById('darkModeIcon').classList.replace('fa-moon', 'fa-sun');
+            }
+        };
+
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const icon = document.getElementById('darkModeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.classList.replace('fa-sun', 'fa-moon');
+                localStorage.setItem('darkMode', 'false');
+            } else {
+                html.classList.add('dark');
+                icon.classList.replace('fa-moon', 'fa-sun');
+                localStorage.setItem('darkMode', 'true');
+            }
+            if (window.myScatterChart) renderCharts();
+            if (filteredData.length > 0) analyzeTags(); // Redraw Word Cloud
+        }
+
+        function checkApiKey() {
+            const localKey = localStorage.getItem('yt_api_key');
+            if (HARDCODED_API_KEY) {
+                apiKey = HARDCODED_API_KEY;
+                updateApiStatus(true, "파일 내장 키");
+                document.getElementById('apiKeyInput').value = "HARDCODED_KEY_ACTIVE";
+                document.getElementById('apiKeyInput').disabled = true;
+            } else if (localKey) {
+                apiKey = localKey;
+                updateApiStatus(true, "저장된 키 사용");
+                document.getElementById('apiKeyInput').value = localKey;
+            } else {
+                updateApiStatus(false, "키 미설정");
+            }
+        }
+
+        function saveApiKey() {
+            const inputKey = document.getElementById('apiKeyInput').value.trim();
+            if (!inputKey) return alert("API 키를 입력하세요.");
+            localStorage.setItem('yt_api_key', inputKey);
+            apiKey = inputKey;
+            updateApiStatus(true, "저장된 키 사용");
+            alert("API 키가 저장되었습니다.");
+            toggleSettings();
+        }
+
+        function clearApiKey() {
+            localStorage.removeItem('yt_api_key');
+            apiKey = "";
+            document.getElementById('apiKeyInput').value = "";
+            updateApiStatus(false, "키 미설정");
+            alert("API 키가 삭제되었습니다.");
+        }
+
+        function updateApiStatus(isValid, text) {
+            const statusEl = document.getElementById('apiKeyStatus');
+            if (isValid) {
+                statusEl.innerHTML = `<i class="fa-solid fa-check-circle mr-1"></i>${text}`;
+                statusEl.className = "text-xs px-2 py-1 rounded bg-green-100 text-green-600 font-medium";
+            } else {
+                statusEl.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i>${text}`;
+                statusEl.className = "text-xs px-2 py-1 rounded bg-gray-100 text-gray-500 font-medium";
+            }
+        }
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function setRelativeDate(months, btn) {
+            const end = new Date();
+            const start = new Date();
+            start.setMonth(start.getMonth() - months);
+
+            document.getElementById('endDate').value = end.toISOString().substring(0, 10);
+            document.getElementById('startDate').value = start.toISOString().substring(0, 10);
+
+            document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
+        function resetDateRange(btn) {
+            document.getElementById('startDate').value = "";
+            document.getElementById('endDate').value = "";
+            document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
+        function formatNumber(num) {
+            if (num >= 100000000) return (num / 100000000).toFixed(1) + '억';
+            if (num >= 10000) return (num / 10000).toFixed(1) + '만';
+            return num.toLocaleString();
+        }
+
+        function parseDuration(duration) {
+            if (!duration) return "";
+            const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+            if (!match) return "";
+            const h = match[1] ? match[1].replace('H', '') : 0;
+            const m = match[2] ? match[2].replace('M', '') : 0;
+            const s = match[3] ? match[3].replace('S', '') : 0;
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function getSecondsFromDuration(duration) {
+            if (!duration) return 0;
+            const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+            if (!match) return 0;
+            const h = parseInt((match[1] || '').replace('H', '')) || 0;
+            const m = parseInt((match[2] || '').replace('M', '')) || 0;
+            const s = parseInt((match[3] || '').replace('S', '')) || 0;
+            return h * 3600 + m * 60 + s;
+        }
+
+        function getCategoryName(id) {
+            return categoryMap[id] || "기타";
+        }
+
+        // --- Mock Data ---
+        function generateMockData(keyword, count, startStr, endStr, region) {
+            const data = [];
+            const now = new Date();
+            const maxTime = endStr ? new Date(endStr).getTime() : now.getTime();
+            let minTime;
+            if (startStr) minTime = new Date(startStr).getTime();
+            else {
+                const d = new Date();
+                d.setFullYear(d.getFullYear() - 1);
+                minTime = d.getTime();
+            }
+            if (minTime > maxTime) minTime = maxTime - 86400000;
+
+            const regionPrefix = region === 'US' ? 'US_' : (region === 'JP' ? 'JP_' : '');
+            const mockTags = ["브이로그", "일상", "여행", "먹방", "운동", "다이어트", "GRWM", "하울", "추천", "꿀팁", "강의", "리뷰", "언박싱", "ASMR", "공부", "코딩", "주식", "투자", "부동산", "게임"];
+
+            for (let i = 0; i < count; i++) {
+                const views = Math.floor(Math.random() * 500000) + 1000;
+                const randomTime = minTime + Math.random() * (maxTime - minTime);
+                const pubDate = new Date(randomTime);
+                const hoursSince = (now - pubDate) / (1000 * 60 * 60);
+                const vph = hoursSince < 1 ? views : Math.round(views / hoursSince);
+
+                const type = Math.random();
+                let durSec;
+                if (type < 0.2) durSec = Math.floor(Math.random() * 50) + 10;
+                else if (type < 0.5) durSec = Math.floor(Math.random() * 240) + 60;
+                else if (type < 0.8) durSec = Math.floor(Math.random() * 900) + 300;
+                else durSec = Math.floor(Math.random() * 3000) + 1200;
+
+                const durStr = `PT${Math.floor(durSec / 3600)}H${Math.floor((durSec % 3600) / 60)}M${durSec % 60}S`.replace('0H', '');
+                const subs = [500, 2000, 8000, 15000, 40000, 80000, 500000][Math.floor(Math.random() * 7)];
+                const catIds = [20, 22, 24, 26, 27, 28];
+                const randCat = catIds[Math.floor(Math.random() * catIds.length)];
+
+                // Mock Engagement
+                const likeCount = Math.round(views * (Math.random() * 0.05 + 0.01));
+                const commentCount = Math.round(views * (Math.random() * 0.005 + 0.001));
+                const engagementRate = ((likeCount + commentCount) / views) * 100;
+
+                // Mock Tags
+                const itemTags = [];
+                const tagCount = Math.floor(Math.random() * 3) + 3;
+                for (let t = 0; t < tagCount; t++) {
+                    itemTags.push(mockTags[Math.floor(Math.random() * mockTags.length)]);
+                }
+
+                // Potential Score
+                const normView = Math.min(views / 100000, 1);
+                const normEng = Math.min(engagementRate / 5, 1);
+                const normVph = Math.min(vph / 500, 1);
+                const potentialScore = Math.round((normView * 40) + (normEng * 40) + (normVph * 20));
+
+                data.push({
+                    rank: i + 1,
+                    apiRank: i + 1,
+                    title: `[${region || 'Global'}] ${keyword.replace(/\+/g, ' ')} Mock #${i + 1}`,
+                    channelTitle: `${regionPrefix}Channel_${i}`,
+                    thumbnail: `https://picsum.photos/100/56?random=${i}`,
+                    viewCount: views,
+                    subscriberCount: subs,
+                    publishedAt: pubDate.toISOString(),
+                    duration: durStr,
+                    durationSec: durSec,
+                    vph: vph,
+                    categoryId: randCat,
+                    videoUrl: '#',
+                    likeCount: likeCount,
+                    commentCount: commentCount,
+                    engagementRate: engagementRate,
+                    potentialScore: potentialScore,
+                    tags: itemTags,
+                    isMock: true
+                });
+            }
+            return data;
+        }
+
+        // --- Core Logic (Multi-page) ---
+        async function startAnalysis() {
+            let keyword = document.getElementById('keywordInput').value.trim();
+            const requestedCount = parseInt(document.getElementById('maxResultsInput').value) || 30;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const regionCode = document.getElementById('regionCode').value;
+
+            if (!keyword) return alert('검색어를 입력하세요.');
+
+            const queryForApi = keyword.replace(/\+/g, ' ');
+
+            const regionText = document.getElementById('regionCode').options[document.getElementById('regionCode').selectedIndex].text;
+            document.getElementById('currentRegionBadge').innerText = regionText.split(' ')[1] || 'Global';
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "유튜브 API 연결 중...";
+            document.getElementById('resultSection').classList.add('hidden');
+            document.getElementById('statsSection').classList.add('hidden');
+            document.getElementById('vizSection').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+
+            try {
+                if (!apiKey) {
+                    await new Promise(r => setTimeout(r, 800));
+                    originalData = generateMockData(keyword, requestedCount, startDate, endDate, regionCode);
+                    alert('[데모 모드] 가상 데이터를 생성합니다.');
+                } else {
+                    let collectedItems = [];
+                    let nextPageToken = '';
+
+                    // --- 1. Loop Fetching (Search API) ---
+                    while (collectedItems.length < requestedCount) {
+                        const remaining = requestedCount - collectedItems.length;
+                        const limit = Math.min(50, remaining);
+
+                        document.getElementById('loadingText').innerText =
+                            `데이터 검색 중... (${collectedItems.length} / ${requestedCount})`;
+
+                        let searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${limit}&q=${encodeURIComponent(queryForApi)}&type=video&key=${apiKey}`;
+
+                        if (startDate) searchUrl += `&publishedAfter=${startDate}T00:00:00Z`;
+                        if (endDate) searchUrl += `&publishedBefore=${endDate}T23:59:59Z`;
+                        if (nextPageToken) searchUrl += `&pageToken=${nextPageToken}`;
+
+                        if (regionCode) {
+                            searchUrl += `&regionCode=${regionCode}`;
+                            if (regionCode === 'KR') searchUrl += `&relevanceLanguage=ko`;
+                            else if (regionCode === 'US') searchUrl += `&relevanceLanguage=en`;
+                            else if (regionCode === 'JP') searchUrl += `&relevanceLanguage=ja`;
+                            else if (regionCode === 'VN') searchUrl += `&relevanceLanguage=vi`;
+                            else if (regionCode === 'IN') searchUrl += `&relevanceLanguage=hi`;
+                        }
+
+                        const searchRes = await fetch(searchUrl);
+                        const searchJson = await searchRes.json();
+                        if (searchJson.error) throw new Error(searchJson.error.message);
+
+                        if (!searchJson.items || searchJson.items.length === 0) break; // No more data
+
+                        collectedItems = collectedItems.concat(searchJson.items);
+                        nextPageToken = searchJson.nextPageToken;
+
+                        if (!nextPageToken) break; // End of pages
+                    }
+
+                    if (collectedItems.length === 0) throw new Error("검색 결과가 없습니다.");
+
+                    // --- 2. Batch Fetching Details (Chunking) ---
+                    document.getElementById('loadingText').innerText = `상세 정보 분석 중... (0/${collectedItems.length})`;
+
+                    // Prepare ID lists
+                    const videoIds = collectedItems.map(i => i.id.videoId);
+                    // Unique Channel IDs
+                    const channelIds = [...new Set(collectedItems.map(i => i.snippet.channelId))];
+
+                    // Helper for chunking
+                    const fetchChunks = async (ids, endpoint, part) => {
+                        const results = {};
+                        for (let i = 0; i < ids.length; i += 50) {
+                            const chunk = ids.slice(i, i + 50).join(',');
+                            const url = `https://www.googleapis.com/youtube/v3/${endpoint}?part=${part}&id=${chunk}&key=${apiKey}`;
+                            const res = await fetch(url);
+                            const json = await res.json();
+                            if (json.items) {
+                                json.items.forEach(item => results[item.id] = item);
+                            }
+                        }
+                        return results;
+                    };
+
+                    // Fetch Videos
+                    const vidMap = await fetchChunks(videoIds, 'videos', 'statistics,contentDetails,snippet');
+
+                    // Fetch Channels
+                    const chMap = await fetchChunks(channelIds, 'channels', 'statistics');
+
+                    // --- 3. Merging ---
+                    const now = new Date();
+                    originalData = collectedItems.map((item, idx) => {
+                        const vidDetail = vidMap[item.id.videoId] || {};
+                        const chDetail = chMap[item.snippet.channelId] || {};
+                        const chStat = chDetail.statistics || {};
+
+                        const views = parseInt(vidDetail.statistics?.viewCount || 0);
+                        const likeCount = parseInt(vidDetail.statistics?.likeCount || 0);
+                        const commentCount = parseInt(vidDetail.statistics?.commentCount || 0);
+                        const subs = parseInt(chStat.subscriberCount || 0);
+                        const duration = vidDetail.contentDetails?.duration || "";
+                        const catId = vidDetail.snippet?.categoryId || 0;
+                        const tags = vidDetail.snippet?.tags || [];
+
+                        const pubDate = new Date(item.snippet.publishedAt);
+                        const hoursSince = (now - pubDate) / (1000 * 60 * 60);
+                        const vph = hoursSince < 1 ? views : Math.round(views / hoursSince);
+
+                        // Engagement Rate Calculation ((Likes + Comments) / Views * 100)
+                        const engagementRate = views > 0 ? ((likeCount + commentCount) / views) * 100 : 0;
+
+                        // Potential Score Calculation (0-100)
+                        const normView = Math.min(views / 100000, 1);
+                        const normEng = Math.min(engagementRate / 5, 1);
+                        const normVph = Math.min(vph / 500, 1);
+                        const potentialScore = Math.round((normView * 40) + (normEng * 40) + (normVph * 20));
+
+                        return {
+                            rank: idx + 1,
+                            apiRank: idx + 1,
+                            title: item.snippet.title,
+                            channelTitle: item.snippet.channelTitle,
+                            thumbnail: item.snippet.thumbnails.default.url,
+                            viewCount: views,
+                            subscriberCount: subs,
+                            publishedAt: item.snippet.publishedAt,
+                            duration: duration,
+                            durationSec: getSecondsFromDuration(duration),
+                            vph: vph,
+                            categoryId: catId,
+                            videoUrl: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+                            likeCount: likeCount,
+                            commentCount: commentCount,
+                            engagementRate: engagementRate,
+                            potentialScore: potentialScore,
+                            tags: tags,
+                            isMock: false
+                        };
+                    });
+                }
+
+                // Reset Sort & Display
+                currentSort = { key: 'rank', direction: 'asc' };
+                applyInstantFilter();
+
+            } catch (err) {
+                alert('오류: ' + err.message);
+                console.error(err);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        // --- Sort Toggle Logic ---
+        function setSort(key) {
+            if (currentSort.key === key) {
+                currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.key = key;
+                if (['views', 'subs', 'vph', 'date', 'likes', 'comments', 'engagement', 'potential'].includes(key)) {
+                    currentSort.direction = 'desc';
+                } else {
+                    currentSort.direction = 'asc';
+                }
+            }
+            applyInstantFilter();
+        }
+
+        function updateTableHeaderIcons() {
+            const headers = ['rank', 'duration', 'views', 'vph', 'subs', 'date', 'likes', 'comments', 'engagement', 'potential'];
+            headers.forEach(h => {
+                const th = document.getElementById(`th-${h}`);
+                if (th) {
+                    th.classList.remove('active-sort');
+                    const icon = th.querySelector('i');
+                    if (icon) {
+                        icon.className = 'fa-solid fa-sort text-gray-300 text-xs ml-1';
+                    }
+                }
+            });
+
+            const activeTh = document.getElementById(`th-${currentSort.key}`);
+            if (activeTh) {
+                activeTh.classList.add('active-sort');
+                const icon = activeTh.querySelector('i');
+                if (icon) {
+                    if (currentSort.direction === 'desc') {
+                        icon.className = 'fa-solid fa-sort-down ml-1';
+                    } else {
+                        icon.className = 'fa-solid fa-sort-up ml-1';
+                    }
+                }
+            }
+        }
+
+        function applyInstantFilter() {
+            const subFilter = document.getElementById('subFilter').value;
+            const durFilter = document.getElementById('durationFilter').value;
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('resultSection').classList.remove('hidden');
+            document.getElementById('statsSection').classList.remove('hidden');
+            document.getElementById('vizSection').classList.remove('hidden');
+
+            // 1. Filtering
+            filteredData = originalData.filter(item => {
+                if (subFilter !== 'all' && item.subscriberCount > parseInt(subFilter)) return false;
+
+                const sec = item.durationSec;
+                if (durFilter === 'shorts' && sec >= 60) return false;
+                if (durFilter === 'short' && (sec < 60 || sec >= 300)) return false;
+                if (durFilter === 'medium' && (sec < 300 || sec >= 1200)) return false;
+                if (durFilter === 'long' && sec < 1200) return false;
+
+                return true;
+            });
+
+            // 2. Sorting
+            filteredData.sort((a, b) => {
+                let valA, valB;
+                switch (currentSort.key) {
+                    case 'views': valA = a.viewCount; valB = b.viewCount; break;
+                    case 'subs': valA = a.subscriberCount; valB = b.subscriberCount; break;
+                    case 'vph': valA = a.vph; valB = b.vph; break;
+                    case 'duration': valA = a.durationSec; valB = b.durationSec; break;
+                    case 'date': valA = new Date(a.publishedAt).getTime(); valB = new Date(b.publishedAt).getTime(); break;
+                    case 'likes': valA = a.likeCount; valB = b.likeCount; break;
+                    case 'comments': valA = a.commentCount; valB = b.commentCount; break;
+                    case 'engagement': valA = a.engagementRate; valB = b.engagementRate; break;
+                    case 'potential': valA = a.potentialScore; valB = b.potentialScore; break;
+                    case 'rank': default: valA = a.apiRank; valB = b.apiRank; break;
+                }
+
+                if (currentSort.direction === 'desc') {
+                    return valB - valA;
+                } else {
+                    return valA - valB;
+                }
+            });
+
+            updateTableHeaderIcons();
+
+            if (filteredData.length === 0) {
+                document.getElementById('emptyState').classList.remove('hidden');
+                document.getElementById('resultTableBody').innerHTML = '';
+                document.getElementById('vizSection').classList.add('hidden');
+                renderStats(true);
+            } else {
+                document.getElementById('emptyState').classList.add('hidden');
+                renderTable();
+                renderStats(false);
+                analyzeTags();
+                renderCharts();
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('resultTableBody');
+            tbody.innerHTML = '';
+
+            filteredData.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition border-b border-gray-100 dark:border-gray-700 group";
+                const vphClass = item.vph > 500 ? "text-red-600 font-bold" : "text-gray-600 dark:text-gray-400";
+                const catName = getCategoryName(item.categoryId);
+
+                // Score Color
+                let scoreClass = "text-gray-500";
+                if (item.potentialScore >= 80) scoreClass = "text-red-600 font-bold";
+                else if (item.potentialScore >= 60) scoreClass = "text-orange-500 font-bold";
+                else if (item.potentialScore >= 40) scoreClass = "text-blue-500";
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-center text-gray-400 font-medium">${index + 1}</td>
+                    <td class="px-4 py-3">
+                        <div class="relative w-24 rounded overflow-hidden shadow-sm group-hover:shadow-md transition">
+                            <img src="${item.thumbnail}" class="w-full h-auto object-cover">
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <a href="${item.videoUrl}" target="_blank" class="text-gray-900 dark:text-white font-medium line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 mb-1 leading-snug">
+                            ${item.title}
+                        </a>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
+                             <i class="fa-solid fa-circle-check text-gray-300 text-[10px]"></i> ${item.channelTitle}
+                             <span class="ml-2 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] border border-gray-200 dark:border-gray-600">${catName}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-center text-sm ${scoreClass}">
+                        ${item.potentialScore}점
+                    </td>
+                    <td class="px-4 py-3 text-center text-xs font-mono bg-gray-50 dark:bg-gray-700 rounded mx-2 text-gray-600 dark:text-gray-300">
+                        ${parseDuration(item.duration)}
+                    </td>
+                    <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300 font-medium text-sm">
+                        ${item.viewCount.toLocaleString()}
+                    </td>
+                    <td class="px-4 py-3 text-right text-sm bg-purple-50/50 dark:bg-purple-900/20">
+                        <span class="${vphClass}">${item.vph.toLocaleString()}</span>
+                        <div class="text-[10px] text-gray-400">/hr</div>
+                    </td>
+                    <td class="px-4 py-3 text-right text-xs text-gray-500 dark:text-gray-400">
+                        ${formatNumber(item.subscriberCount)}
+                    </td>
+                    <td class="px-4 py-3 text-center text-xs text-gray-400">
+                        ${item.publishedAt.substring(0, 10)}
+                    </td>
+                    <td class="px-4 py-3 text-right text-xs text-gray-600 dark:text-gray-400">
+                        ${formatNumber(item.likeCount)}
+                    </td>
+                    <td class="px-4 py-3 text-right text-xs text-gray-600 dark:text-gray-400">
+                        ${formatNumber(item.commentCount)}
+                    </td>
+                    <td class="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400">
+                        ${item.engagementRate.toFixed(2)}%
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderStats(isEmpty) {
+            if (isEmpty) {
+                document.getElementById('statTotal').innerText = "0 개";
+                document.getElementById('statAvgView').innerText = "-";
+                document.getElementById('statAvgVPH').innerText = "-";
+                document.getElementById('statAvgDuration').innerText = "-";
+                return;
+            }
+            const totalViews = filteredData.reduce((acc, cur) => acc + cur.viewCount, 0);
+            const totalVPH = filteredData.reduce((acc, cur) => acc + cur.vph, 0);
+            const totalDur = filteredData.reduce((acc, cur) => acc + cur.durationSec, 0);
+
+            document.getElementById('statTotal').innerText = filteredData.length + " 개";
+            document.getElementById('statAvgView').innerText = formatNumber(Math.round(totalViews / filteredData.length));
+            document.getElementById('statAvgVPH').innerText = formatNumber(Math.round(totalVPH / filteredData.length));
+            const avgSec = Math.round(totalDur / filteredData.length);
+            document.getElementById('statAvgDuration').innerText = Math.floor(avgSec / 60) + "분 " + (avgSec % 60) + "초";
+        }
+
+        function downloadExcel() {
+            if (!filteredData.length) return alert('데이터가 없습니다.');
+            const region = document.getElementById('regionCode').value || 'Global';
+            const excelData = filteredData.map(d => ({
+                '국가': region,
+                '카테고리': getCategoryName(d.categoryId),
+                '제목': d.title,
+                '채널명': d.channelTitle,
+                '잠재력점수': d.potentialScore,
+                '길이': parseDuration(d.duration),
+                '조회수': d.viewCount,
+                '시간당조회수(VPH)': d.vph,
+                '구독자수': d.subscriberCount,
+                '게시일': d.publishedAt.substring(0, 10),
+                '좋아요': d.likeCount,
+                '댓글': d.commentCount,
+                '참여도(%)': d.engagementRate.toFixed(2) + '%',
+                '태그': d.tags ? d.tags.join(', ') : '',
+                '링크': d.videoUrl
+            }));
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Youtube_Result");
+            XLSX.writeFile(wb, `유튜브분석_${region}_${document.getElementById('keywordInput').value}_Signature.xlsx`);
+        }
+
+        function exportToPdf() {
+            const element = document.getElementById('reportContent');
+            const opt = {
+                margin: 10,
+                filename: `Youtube_Analysis_${new Date().toISOString().slice(0, 10)}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function analyzeTags() {
+            const tagCounts = {};
+            filteredData.forEach(item => {
+                if (item.tags && item.tags.length > 0) {
+                    item.tags.forEach(tag => {
+                        const t = tag.toLowerCase().trim();
+                        tagCounts[t] = (tagCounts[t] || 0) + 1;
+                    });
+                }
+            });
+
+            const sortedTags = Object.entries(tagCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 50); // Top 50 for Word Cloud
+
+            const tagContainer = document.getElementById('tagCloud');
+            tagContainer.innerHTML = '';
+
+            if (sortedTags.length === 0) {
+                tagContainer.innerHTML = '<p class="text-sm text-gray-400">태그 정보가 없습니다.</p>';
+                return;
+            }
+
+            // Word Cloud Canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = tagContainer.clientWidth;
+            canvas.height = 300;
+            canvas.className = "w-full h-full";
+            tagContainer.appendChild(canvas);
+
+            const isDark = document.documentElement.classList.contains('dark');
+
+            WordCloud(canvas, {
+                list: sortedTags,
+                gridSize: 8,
+                weightFactor: function (size) {
+                    return Math.pow(size, 1.5) * (canvas.width / 1000) * 15;
+                },
+                fontFamily: 'Noto Sans KR, sans-serif',
+                color: function (word, weight) {
+                    const colors = isDark
+                        ? ['#F87171', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA']
+                        : ['#DC2626', '#2563EB', '#059669', '#D97706', '#7C3AED'];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                },
+                rotateRatio: 0.5,
+                rotationSteps: 2,
+                backgroundColor: 'transparent',
+                click: function (item) {
+                    document.getElementById('keywordInput').value = item[0];
+                    startAnalysis();
+                }
+            });
+        }
+
+        let myScatterChart = null;
+        let myBarChart = null;
+
+        function renderCharts() {
+            const ctxScatter = document.getElementById('scatterChart').getContext('2d');
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#e5e7eb' : '#374151';
+            const gridColor = isDark ? '#374151' : '#e5e7eb';
+
+            // 1. Scatter: Date vs Views
+            const scatterData = filteredData.map(d => ({
+                x: new Date(d.publishedAt).getTime(),
+                y: d.viewCount,
+                title: d.title
+            }));
+
+            if (myScatterChart) myScatterChart.destroy();
+            myScatterChart = new Chart(ctxScatter, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: '게시일 vs 조회수',
+                        data: scatterData,
+                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: textColor } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return context.raw.title.substring(0, 20) + '... : ' + formatNumber(context.raw.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'month' },
+                            grid: { color: gridColor },
+                            ticks: { color: textColor }
+                        },
+                        y: {
+                            grid: { color: gridColor },
+                            ticks: { color: textColor }
+                        }
+                    }
+                }
+            });
+
+            // 2. Bar: Duration Distribution vs Avg Views
+            const buckets = { '쇼츠(<1분)': [], '짧음(1-5분)': [], '중간(5-10분)': [], '김(10-20분)': [], '매우김(>20분)': [] };
+
+            filteredData.forEach(d => {
+                const s = d.durationSec;
+                if (s < 60) buckets['쇼츠(<1분)'].push(d.viewCount);
+                else if (s < 300) buckets['짧음(1-5분)'].push(d.viewCount);
+                else if (s < 600) buckets['중간(5-10분)'].push(d.viewCount);
+                else if (s < 1200) buckets['김(10-20분)'].push(d.viewCount);
+                else buckets['매우김(>20분)'].push(d.viewCount);
+            });
+
+            const labels = Object.keys(buckets);
+            const avgViews = labels.map(k => {
+                const arr = buckets[k];
+                return arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+            });
+
+            if (myBarChart) myBarChart.destroy();
+            myBarChart = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '길이별 평균 조회수',
+                        data: avgViews,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: textColor } }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: gridColor },
+                            ticks: { color: textColor }
+                        },
+                        y: {
+                            grid: { color: gridColor },
+                            ticks: { color: textColor }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
