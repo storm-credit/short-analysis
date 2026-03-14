@@ -163,7 +163,7 @@ export function extractKeywords(shorts: ShortVideo[]): KeywordTrend[] {
 
       return {
         keyword,
-        count: Math.min(data.count, data.isBigram ? data.count : data.count), // 태그 중복 카운트 포함
+        count: data.count, // 태그 2x 가중 포함
         avgScore: Math.round(avgScore),
         examples: data.titles,
         tfidf,

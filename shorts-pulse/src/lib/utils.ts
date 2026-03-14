@@ -26,7 +26,8 @@ export function timeAgo(dateStr: string): string {
 }
 
 export function hoursAge(dateStr: string): number {
-  return (new Date().getTime() - new Date(dateStr).getTime()) / 3600000;
+  const diff = (new Date().getTime() - new Date(dateStr).getTime()) / 3600000;
+  return Math.max(0, diff); // 미래 날짜 방어
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

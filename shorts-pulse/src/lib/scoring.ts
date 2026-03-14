@@ -31,6 +31,15 @@ const CATEGORY_MULTIPLIER = 25;
 const RECENCY_HALFLIFE_HOURS = 24;    // 48→24 (일일 트래킹에 적합)
 const MIN_HOURS_AGE = 0.5;            // 0.1→0.5 (30분 미만 VPH 과대평가 방지)
 
+/** 중앙값 계산 (정렬된 배열 필요) */
+function median(sorted: number[]): number {
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
 /**
  * 소프트 캡 — 100을 넘어도 점진적으로 감쇠 (하드 캡 대신 로그 스케일)
  * softCap(50) = 50, softCap(100) = 100, softCap(200) ≈ 130, softCap(500) ≈ 170
@@ -96,7 +105,7 @@ export function calculateViralityScore(
   );
 
   return {
-    total: Math.min(100, Math.max(0, total)),
+    total: Math.max(0, total),  // softCap이 상위 변별력 유지하므로 하드캡 제거
     breakdown: {
       velocity: Math.round(velocityScore),
       engagement: Math.round(engagementScore),
@@ -129,23 +138,22 @@ export function buildCategoryBenchmarks(videos: ShortVideo[]): Record<string, Ca
   Object.entries(cats).forEach(([cat, d]) => {
     const sortedViews = [...d.views].sort((a, b) => a - b);
     const sortedVphs = [...d.vphs].sort((a, b) => a - b);
-    const medianIdx = Math.floor((sortedViews.length - 1) / 2);
-    const medianVphIdx = Math.floor((sortedVphs.length - 1) / 2);
     benchmarks[cat] = {
-      medianViews: sortedViews[medianIdx] || 0,
+      medianViews: median(sortedViews),
       avgVPH: d.vphs.length > 0
         ? d.vphs.reduce((a, b) => a + b, 0) / d.vphs.length
         : 1,
-      medianVPH: sortedVphs[medianVphIdx] || 1,
+      medianVPH: median(sortedVphs) || 1,
     };
   });
   return benchmarks;
 }
 
 export function getTier(score: number): TierInfo {
-  if (score >= 85) return { label: 'VIRAL', css: 'tier-viral', icon: 'Flame', color: '#FF2D55' };
+  // softCap 적용으로 점수가 100 이상 가능 → 티어 경계 조정
+  if (score >= 90) return { label: 'VIRAL', css: 'tier-viral', icon: 'Flame', color: '#FF2D55' };
   if (score >= 70) return { label: 'HOT', css: 'tier-hot', icon: 'Zap', color: '#FF9500' };
-  if (score >= 50) return { label: 'RISING', css: 'tier-rising', icon: 'TrendingUp', color: '#0071E3' };
-  if (score >= 30) return { label: 'WARM', css: 'tier-warm', icon: 'Leaf', color: '#34C759' };
+  if (score >= 45) return { label: 'RISING', css: 'tier-rising', icon: 'TrendingUp', color: '#0071E3' };
+  if (score >= 25) return { label: 'WARM', css: 'tier-warm', icon: 'Leaf', color: '#34C759' };
   return { label: 'STABLE', css: 'tier-stable', icon: 'Minus', color: '#8E8E93' };
 }
