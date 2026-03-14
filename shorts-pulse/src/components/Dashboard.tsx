@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { ShortVideo, SortKey, ViewMode } from '@/types';
-import { REGIONS, CATEGORY_MAP, QA_STYLE_KEYWORDS } from '@/lib/constants';
+import { REGIONS, QA_STYLE_KEYWORDS } from '@/lib/constants';
 import ShortCard from './ShortCard';
 import ShortListItem from './ShortListItem';
 import DetailModal from './DetailModal';
@@ -27,12 +27,16 @@ export default function Dashboard({ shorts, currentRegion, currentDate }: Dashbo
   const [selectedVideo, setSelectedVideo] = useState<ShortVideo | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
-  const availableCategories = useMemo(() => {
-    const cats = new Set<string>();
-    shorts.forEach((v) => cats.add(v.categoryId));
-    return Array.from(cats)
-      .map((id) => ({ id, name: CATEGORY_MAP[id] || `카테고리 ${id}` }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+  // 주제별 카테고리 (검색 쿼리 기반 topicTag 사용)
+  const availableTopics = useMemo(() => {
+    const topicCounts = new Map<string, number>();
+    shorts.forEach((v) => {
+      const tag = v.topicTag || '기타';
+      topicCounts.set(tag, (topicCounts.get(tag) || 0) + 1);
+    });
+    return Array.from(topicCounts.entries())
+      .map(([topic, count]) => ({ topic, count }))
+      .sort((a, b) => b.count - a.count);
   }, [shorts]);
 
   const filtered = useMemo(() => {
@@ -40,7 +44,7 @@ export default function Dashboard({ shorts, currentRegion, currentDate }: Dashbo
     if (categoryFilter === 'qa-style') {
       result = shorts.filter(isQAStyle);
     } else if (categoryFilter !== 'all') {
-      result = shorts.filter((v) => v.categoryId === categoryFilter);
+      result = shorts.filter((v) => v.topicTag === categoryFilter);
     }
     return [...result].sort((a, b) => {
       const va = (a[sortKey] as number) ?? 0;
@@ -120,22 +124,19 @@ export default function Dashboard({ shorts, currentRegion, currentDate }: Dashbo
         >
           Q&A/비교형 ({qaCount})
         </button>
-        {availableCategories.map((cat) => {
-          const count = shorts.filter((v) => v.categoryId === cat.id).length;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setCategoryFilter(cat.id)}
-              className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all ${
-                categoryFilter === cat.id
-                  ? 'bg-[#1D1D1F] text-white'
-                  : 'bg-black/[0.04] text-[#86868B] hover:bg-black/[0.08]'
-              }`}
-            >
-              {cat.name} ({count})
-            </button>
-          );
-        })}
+        {availableTopics.map(({ topic, count }) => (
+          <button
+            key={topic}
+            onClick={() => setCategoryFilter(topic)}
+            className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all ${
+              categoryFilter === topic
+                ? 'bg-[#1D1D1F] text-white'
+                : 'bg-black/[0.04] text-[#86868B] hover:bg-black/[0.08]'
+            }`}
+          >
+            {topic} ({count})
+          </button>
+        ))}
       </div>
 
       {/* Content */}

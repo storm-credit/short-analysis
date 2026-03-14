@@ -29,7 +29,7 @@ export default function RegionalComparison({ shortsData, onVideoClick }: Regiona
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
                 <span className="text-2xl">{info.flag}</span>
                 <span className="font-semibold text-[15px] flex-1">{info.name}</span>
-                <span className="text-xs text-[#34C759] font-semibold">~${info.avgCPM}</span>
+                <span className="text-xs text-[#34C759] font-semibold">RPM ${info.avgCPM}</span>
               </div>
 
               {shorts.length === 0 ? (

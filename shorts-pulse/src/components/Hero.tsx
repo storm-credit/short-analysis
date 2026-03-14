@@ -56,12 +56,12 @@ export default function Hero({
           >
             {Object.entries(REGIONS).map(([code, info]) => (
               <option key={code} value={code} className="bg-[#1C1C1E] text-[#F5F5F7]">
-                {info.flag} {info.name} (~${info.avgCPM})
+                {info.flag} {info.name} (RPM ${info.avgCPM})
               </option>
             ))}
           </select>
           <span className="text-[#A1A1A6] text-[11px] font-medium pr-3 whitespace-nowrap">
-            {regionInfo?.flag} ~${regionInfo?.avgCPM}
+            {regionInfo?.flag} RPM ${regionInfo?.avgCPM}
           </span>
         </div>
 

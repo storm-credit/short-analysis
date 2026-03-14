@@ -12,6 +12,7 @@ export interface ShortVideo {
   commentCount: number;
   durationSec: number;
   subscriberCount: number;
+  topicTag: string;
   isShort: boolean;
   engagementRate: number;
   viewsPerHour: number;

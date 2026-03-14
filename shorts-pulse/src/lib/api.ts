@@ -146,58 +146,65 @@ export function clearTrendingCache(): void {
  * Quota: 12쿼리 × 10지역 = 120 search = 12,000 units
  * → 선택 지역만 전체 검색, 나머지는 핵심 4개만 검색
  */
-const CORE_QUERIES = [
-  'did you know amazing facts',             // 상식/놀라운 사실
-  'vs comparison which is better',           // A vs B 비교형
-  'why how science explained',               // 과학/교육
-  'top ranking best worst',                  // 랭킹/순위형
+/** 주제별 검색 쿼리 — 각 쿼리에 topicTag 부여 */
+const TOPIC_QUERIES = [
+  { query: 'did you know amazing facts shorts', topic: '상식/팩트' },
+  { query: 'vs comparison which is better shorts', topic: '비교/VS' },
+  { query: 'why how science explained shorts', topic: '과학/교육' },
+  { query: 'top ranking best worst shorts', topic: '랭킹/순위' },
+  { query: 'animals nature wildlife amazing shorts', topic: '동물/자연' },
+  { query: 'space universe cosmos planet shorts', topic: '우주/SF' },
+  { query: 'history what happened explained shorts', topic: '역사' },
+  { query: 'human body health medical facts shorts', topic: '건강/인체' },
+  { query: 'psychology mind brain behavior shorts', topic: '심리/뇌과학' },
+  { query: 'country culture world difference shorts', topic: '문화/세계' },
+  { query: 'food nutrition cooking myth shorts', topic: '음식/영양' },
+  { query: 'technology AI robot future shorts', topic: '테크/AI' },
 ];
 
-const EXTENDED_QUERIES = [
-  'animals nature wildlife amazing',         // 동물/자연
-  'space universe aliens planet',            // 우주/SF
-  'history what happened explained',         // 역사/시사
-  'human body health facts',                 // 인체/건강
-  'psychology mind brain facts',             // 심리/상식
-  'country culture difference compare',      // 나라별 차이/비교
-  'food nutrition myth truth',               // 음식/건강 상식
-  'technology AI future invention',          // 테크/미래
-];
+interface ShortsResult {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  items: any[];
+  /** videoId → topicTag 매핑 */
+  topicMap: Record<string, string>;
+}
 
-async function fetchShorts(regionCode: string, useExtended: boolean = false): Promise<Record<string, unknown>> {
-  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts`;
+async function fetchShorts(regionCode: string): Promise<ShortsResult> {
+  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v3`;
   const cached = cacheGet(cacheKey);
-  if (cached) return cached;
+  if (cached) return cached as unknown as ShortsResult;
 
-  // 선택 지역 = 12개 전체 쿼리, 나머지 = 4개 핵심 쿼리 (quota 절약)
-  const queries = useExtended ? [...CORE_QUERIES, ...EXTENDED_QUERIES] : CORE_QUERIES;
-  const maxPerQuery = useExtended ? 30 : 25;
+  const maxPerQuery = 25;
 
-  // Step 1: Q&A 쿼리 병렬 검색
+  // Step 1: 12개 주제별 병렬 검색
   const searchResults = await Promise.all(
-    queries.map((q) =>
+    TOPIC_QUERIES.map((tq) =>
       fetchWithFallback(
         (key) =>
-          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(q)}&maxResults=${maxPerQuery}&key=${key}`
+          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(tq.query)}&maxResults=${maxPerQuery}&key=${key}`
       ).catch(() => ({ items: [] }))
     )
   );
 
-  // 중복 제거 후 videoId 수집
+  // videoId → topicTag 매핑 (첫 번째 검색 쿼리의 topic이 우선)
+  const topicMap: Record<string, string> = {};
   const idSet = new Set<string>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  searchResults.forEach((res: any) => {
+  searchResults.forEach((res: any, qi: number) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (res.items || []).forEach((item: any) => {
       const vid = item.id?.videoId;
-      if (vid) idSet.add(vid);
+      if (vid) {
+        idSet.add(vid);
+        if (!topicMap[vid]) topicMap[vid] = TOPIC_QUERIES[qi].topic;
+      }
     });
   });
 
-  const videoIds = Array.from(idSet).join(',');
-  if (!videoIds) {
-    cacheSet(cacheKey, { items: [] });
-    return { items: [] };
+  if (idSet.size === 0) {
+    const empty = { items: [], topicMap: {} };
+    cacheSet(cacheKey, empty);
+    return empty;
   }
 
   // Step 2: Videos API로 상세 데이터 (50개씩 배치)
@@ -214,7 +221,7 @@ async function fetchShorts(regionCode: string, useExtended: boolean = false): Pr
     allItems = allItems.concat((json as any).items || []);
   }
 
-  const result = { items: allItems };
+  const result: ShortsResult = { items: allItems, topicMap };
   cacheSet(cacheKey, result);
   return result;
 }
@@ -269,7 +276,7 @@ async function fetchChannelSubscribers(channelIds: string[]): Promise<Record<str
 // Process Videos
 // ==========================================
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function processVideos(apiResponse: any, subMap: Record<string, number>): ShortVideo[] {
+function processVideos(apiResponse: any, subMap: Record<string, number>, topicMap?: Record<string, string>): ShortVideo[] {
   if (!apiResponse?.items) return [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiResponse.items.map((item: any) => {
@@ -290,6 +297,7 @@ function processVideos(apiResponse: any, subMap: Record<string, number>): ShortV
       commentCount: parseInt(st?.commentCount) || 0,
       durationSec: dur,
       subscriberCount: subMap[s.channelId] || 0,
+      topicTag: topicMap?.[item.id] || '기타',
       isShort: dur <= SHORTS_MAX_DURATION,
       engagementRate: 0,
       viewsPerHour: 0,
@@ -327,44 +335,44 @@ export interface FetchResult {
   allTrending: Record<string, ShortVideo[]>;
 }
 
-export async function fetchAllRegions(
-  regionCodes: string[],
+/** 광고/공식 채널 필터 — 선전성 콘텐츠 제외 */
+const SPAM_KEYWORDS = [
+  'official', 'mv', 'music video', 'trailer', 'teaser', 'promo',
+  '공식', '뮤직비디오', '예고편', '광고', 'commercial', 'ad ',
+  'sponsored', '#ad', 'VEVO',
+];
+
+function isSpamOrPromo(video: ShortVideo): boolean {
+  const t = video.title.toLowerCase();
+  const ch = video.channelTitle.toLowerCase();
+  return SPAM_KEYWORDS.some((kw) => t.includes(kw.toLowerCase()) || ch.includes(kw.toLowerCase()));
+}
+
+/**
+ * 단일 지역 쇼츠 검색 — 선택한 지역만 검색해서 쿼터 절약
+ * 12쿼리 × 1지역 = 12 search calls = 1,200 units (10지역 대비 90% 절약)
+ */
+export async function fetchRegionShorts(
+  regionCode: string,
   onProgress?: (msg: string) => void,
-  focusRegion?: string
-): Promise<FetchResult> {
-  const focus = focusRegion || regionCodes[0];
+): Promise<ShortVideo[]> {
+  onProgress?.(`${regionCode} 지역 쇼츠 검색 중...`);
 
-  // Quota 최적화: 선택 지역은 확장 검색(12쿼리), 나머지는 핵심만(4쿼리)
-  // 트렌딩(mostPopular)는 1 unit이므로 전 지역 가능
-  onProgress?.(`${regionCodes.length}개 지역에서 쇼츠 검색 중...`);
-
-  const [shortsResults, trendingResults] = await Promise.all([
-    // Shorts: 순차적으로 (선택 지역 먼저, 캐시 있으면 빠르게 통과)
-    (async () => {
-      const results: Record<string, unknown>[] = [];
-      for (const code of regionCodes) {
-        try {
-          results.push(await fetchShorts(code, code === focus));
-        } catch (e) {
-          console.warn(`Failed to fetch shorts ${code}:`, e);
-          results.push({ items: [] });
-        }
-      }
-      return results;
-    })(),
-    Promise.all(
-      regionCodes.map((code) =>
-        fetchTrending(code).catch((e) => {
-          console.warn(`Failed to fetch trending ${code}:`, e);
-          return { items: [] };
-        })
-      )
-    ),
+  // Shorts 검색 + 트렌딩 병렬 실행
+  const [shortsResult, trendingResult] = await Promise.all([
+    fetchShorts(regionCode).catch((e) => {
+      console.warn(`Shorts fetch failed ${regionCode}:`, e);
+      return { items: [], topicMap: {} } as ShortsResult;
+    }),
+    fetchTrending(regionCode).catch((e) => {
+      console.warn(`Trending fetch failed ${regionCode}:`, e);
+      return { items: [] };
+    }),
   ]);
 
-  // Collect channel IDs from both sources
+  // 채널 구독자 수집
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allItems = [...shortsResults, ...trendingResults].flatMap((r: any) => r.items || []);
+  const allItems = [...(shortsResult.items || []), ...((trendingResult as any).items || [])];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const channelIds = [...new Set(allItems.map((i: any) => i.snippet?.channelId).filter(Boolean))] as string[];
 
@@ -373,29 +381,46 @@ export async function fetchAllRegions(
 
   onProgress?.('바이럴 점수 계산 중...');
 
+  // Shorts 처리 (topicTag 포함)
+  const shortsProcessed = processVideos({ items: shortsResult.items }, subMap, shortsResult.topicMap);
+  const shorts = shortsProcessed.filter((v) => v.durationSec <= SHORTS_MAX_DURATION);
+
+  // 트렌딩에서 Shorts 추출 (중복 제거)
+  const trendingProcessed = processVideos(trendingResult, subMap);
+  const shortsFromTrending = filterShorts(trendingProcessed);
+  const existingIds = new Set(shorts.map((v) => v.id));
+  shortsFromTrending.forEach((v) => {
+    if (!existingIds.has(v.id)) shorts.push(v);
+  });
+
+  // 벤치마크 → 점수 계산
+  const benchmarks = buildCategoryBenchmarks([...trendingProcessed, ...shortsProcessed]);
+  const scored = enrichWithScores(shorts, benchmarks);
+
+  // 광고/공식 콘텐츠 필터링
+  return scored.filter((v) => !isSpamOrPromo(v));
+}
+
+/** 여러 지역 한번에 (지역 비교용) */
+export async function fetchAllRegions(
+  regionCodes: string[],
+  onProgress?: (msg: string) => void,
+): Promise<FetchResult> {
+  onProgress?.(`${regionCodes.length}개 지역에서 쇼츠 검색 중...`);
+
   const shortsOnly: Record<string, ShortVideo[]> = {};
   const allTrending: Record<string, ShortVideo[]> = {};
 
-  regionCodes.forEach((code, i) => {
-    // 트렌딩 데이터 (벤치마크 기준)
-    const trendingProcessed = processVideos(trendingResults[i], subMap);
-    allTrending[code] = trendingProcessed;
-
-    // Shorts 데이터 (Search API 결과)
-    const shortsProcessed = processVideos(shortsResults[i], subMap);
-    // 3분(180초) 이하만 필터
-    const shorts = shortsProcessed.filter((v) => v.durationSec <= SHORTS_MAX_DURATION);
-
-    // 트렌딩에서도 Shorts 추출 (중복 제거)
-    const shortsFromTrending = filterShorts(trendingProcessed);
-    const existingIds = new Set(shorts.map((v) => v.id));
-    shortsFromTrending.forEach((v) => {
-      if (!existingIds.has(v.id)) shorts.push(v);
-    });
-
-    const benchmarks = buildCategoryBenchmarks([...trendingProcessed, ...shortsProcessed]);
-    shortsOnly[code] = enrichWithScores(shorts, benchmarks);
-  });
+  for (const code of regionCodes) {
+    onProgress?.(`${code} 지역 검색 중...`);
+    try {
+      shortsOnly[code] = await fetchRegionShorts(code);
+    } catch (e) {
+      console.warn(`Failed: ${code}`, e);
+      shortsOnly[code] = [];
+    }
+    allTrending[code] = []; // 지역 비교에서는 트렌딩 불필요
+  }
 
   return { shortsOnly, allTrending };
 }
@@ -438,6 +463,7 @@ export function generateMockShorts(count: number): ShortVideo[] {
       commentCount: Math.floor(views * (0.001 + Math.random() * 0.005)),
       durationSec: Math.floor(Math.random() * 55) + 5,
       subscriberCount: subs,
+      topicTag: ['상식/팩트', '비교/VS', '과학/교육', '동물/자연', '우주/SF', '건강/인체', '심리/뇌과학'][i % 7],
       isShort: true,
       engagementRate: 0,
       viewsPerHour: 0,

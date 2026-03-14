@@ -1,16 +1,18 @@
 import { RegionInfo } from '@/types';
 
+// Shorts RPM ($/1000뷰) — 일반 영상 CPM의 1/100~1/50 수준
+// 2024~2025 기준, 국가별 Shorts 광고 수익 분배 추정치
 export const REGIONS: Record<string, RegionInfo> = {
-  NO: { code: 'NO', name: '노르웨이', flag: '🇳🇴', avgCPM: 43.00 },
-  AU: { code: 'AU', name: '호주', flag: '🇦🇺', avgCPM: 36.00 },
-  CH: { code: 'CH', name: '스위스', flag: '🇨🇭', avgCPM: 23.00 },
-  GB: { code: 'GB', name: '영국', flag: '🇬🇧', avgCPM: 22.00 },
-  DE: { code: 'DE', name: '독일', flag: '🇩🇪', avgCPM: 20.00 },
-  US: { code: 'US', name: '미국', flag: '🇺🇸', avgCPM: 13.00 },
-  CA: { code: 'CA', name: '캐나다', flag: '🇨🇦', avgCPM: 12.00 },
-  FR: { code: 'FR', name: '프랑스', flag: '🇫🇷', avgCPM: 3.90 },
-  KR: { code: 'KR', name: '한국', flag: '🇰🇷', avgCPM: 3.50 },
-  JP: { code: 'JP', name: '일본', flag: '🇯🇵', avgCPM: 2.90 },
+  US: { code: 'US', name: '미국', flag: '🇺🇸', avgCPM: 0.08 },
+  GB: { code: 'GB', name: '영국', flag: '🇬🇧', avgCPM: 0.07 },
+  AU: { code: 'AU', name: '호주', flag: '🇦🇺', avgCPM: 0.07 },
+  CA: { code: 'CA', name: '캐나다', flag: '🇨🇦', avgCPM: 0.06 },
+  DE: { code: 'DE', name: '독일', flag: '🇩🇪', avgCPM: 0.06 },
+  NO: { code: 'NO', name: '노르웨이', flag: '🇳🇴', avgCPM: 0.09 },
+  CH: { code: 'CH', name: '스위스', flag: '🇨🇭', avgCPM: 0.08 },
+  FR: { code: 'FR', name: '프랑스', flag: '🇫🇷', avgCPM: 0.04 },
+  KR: { code: 'KR', name: '한국', flag: '🇰🇷', avgCPM: 0.03 },
+  JP: { code: 'JP', name: '일본', flag: '🇯🇵', avgCPM: 0.04 },
 };
 
 export const CATEGORY_MAP: Record<string, string> = {

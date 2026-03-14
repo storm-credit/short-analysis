@@ -5,6 +5,7 @@ import { ShortVideo, RegionCode, TabId } from '@/types';
 import { REGIONS } from '@/lib/constants';
 import {
   loadApiKeys,
+  fetchRegionShorts,
   fetchAllRegions,
   generateMockShorts,
   saveSnapshot,
@@ -44,23 +45,13 @@ export default function Home() {
 
     try {
       if (!isToday) {
-        let hasSnapshot = false;
-        const regionCodes = Object.keys(REGIONS);
-        const snapData: Record<string, ShortVideo[]> = {};
-        regionCodes.forEach((code) => {
-          const snap = getSnapshot(currentDate, code);
-          if (snap) {
-            snapData[code] = snap;
-            hasSnapshot = true;
-          }
-        });
-        if (hasSnapshot) {
-          setShortsData(snapData);
+        const snap = getSnapshot(currentDate, currentRegion);
+        if (snap) {
+          setShortsData((prev) => ({ ...prev, [currentRegion]: snap }));
           showToast(`${currentDate} 캐시 데이터 표시 중`);
           setLoading(false);
           return;
         } else {
-          setShortsData({});
           showToast(`${currentDate} 데이터 없음. 첫 사용일부터 매일 기록됩니다.`);
           setLoading(false);
           return;
@@ -77,16 +68,11 @@ export default function Home() {
         setShortsData(mockData);
         showToast('데모 모드 — 설정에서 YouTube API 키를 추가하세요');
       } else {
-        const regionCodes = Object.keys(REGIONS);
-        const result = await fetchAllRegions(regionCodes, setLoadingText, currentRegion);
-
-        regionCodes.forEach((code) => {
-          saveSnapshot(currentDate, code, result.shortsOnly[code] || []);
-        });
-
-        setShortsData(result.shortsOnly);
-        const totalShorts = Object.values(result.shortsOnly).reduce((s, arr) => s + arr.length, 0);
-        showToast(`${regionCodes.length}개 지역에서 ${totalShorts}개 쇼츠 로드 완료`);
+        // 선택 지역만 검색 (쿼터 절약: 12쿼리 vs 기존 120쿼리)
+        const shorts = await fetchRegionShorts(currentRegion, setLoadingText);
+        saveSnapshot(currentDate, currentRegion, shorts);
+        setShortsData((prev) => ({ ...prev, [currentRegion]: shorts }));
+        showToast(`${REGIONS[currentRegion]?.name}에서 ${shorts.length}개 쇼츠 로드 완료`);
       }
     } catch (error) {
       console.error('Load error:', error);
@@ -94,7 +80,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [currentDate, showToast]);
+  }, [currentDate, currentRegion, showToast]);
 
   useEffect(() => {
     loadData();
