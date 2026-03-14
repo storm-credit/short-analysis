@@ -51,6 +51,7 @@ export interface RegionInfo {
   name: string;
   flag: string;
   avgCPM: number;
+  lang: string; // relevanceLanguage for YouTube Search API
 }
 
 export interface CategoryBenchmark {
@@ -61,7 +62,7 @@ export interface CategoryBenchmark {
 
 export type SortKey = 'viralityScore' | 'viewCount' | 'viewsPerHour' | 'engagementRate';
 export type ViewMode = 'grid' | 'list';
-export type RegionCode = 'US' | 'GB' | 'AU' | 'CA' | 'KR' | 'NO' | 'DE' | 'CH' | 'JP' | 'FR';
+export type RegionCode = 'US' | 'GB' | 'JP' | 'KR' | 'DE' | 'ES' | 'BR' | 'FR' | 'MX' | 'AU' | 'CA' | 'NO' | 'CH';
 export type TabId = 'trending' | 'analytics' | 'regional' | 'insights' | 'settings';
 
 export interface KeywordTrend {

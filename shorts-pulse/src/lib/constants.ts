@@ -1,18 +1,21 @@
 import { RegionInfo } from '@/types';
 
-// Shorts RPM ($/1000뷰) — 일반 영상 CPM의 1/100~1/50 수준
-// 2024~2025 기준, 국가별 Shorts 광고 수익 분배 추정치
+// Shorts RPM ($/1000뷰) — 국가별 Shorts 광고 수익 분배 추정치 (2025)
+// lang: YouTube Search API relevanceLanguage (해당 언어 콘텐츠 우선)
 export const REGIONS: Record<string, RegionInfo> = {
-  US: { code: 'US', name: '미국', flag: '🇺🇸', avgCPM: 0.08 },
-  GB: { code: 'GB', name: '영국', flag: '🇬🇧', avgCPM: 0.07 },
-  AU: { code: 'AU', name: '호주', flag: '🇦🇺', avgCPM: 0.07 },
-  CA: { code: 'CA', name: '캐나다', flag: '🇨🇦', avgCPM: 0.06 },
-  DE: { code: 'DE', name: '독일', flag: '🇩🇪', avgCPM: 0.06 },
-  NO: { code: 'NO', name: '노르웨이', flag: '🇳🇴', avgCPM: 0.09 },
-  CH: { code: 'CH', name: '스위스', flag: '🇨🇭', avgCPM: 0.08 },
-  FR: { code: 'FR', name: '프랑스', flag: '🇫🇷', avgCPM: 0.04 },
-  KR: { code: 'KR', name: '한국', flag: '🇰🇷', avgCPM: 0.03 },
-  JP: { code: 'JP', name: '일본', flag: '🇯🇵', avgCPM: 0.04 },
+  US: { code: 'US', name: '미국', flag: '🇺🇸', avgCPM: 0.08, lang: 'en' },
+  JP: { code: 'JP', name: '일본', flag: '🇯🇵', avgCPM: 0.04, lang: 'ja' },
+  KR: { code: 'KR', name: '한국', flag: '🇰🇷', avgCPM: 0.03, lang: 'ko' },
+  ES: { code: 'ES', name: '스페인', flag: '🇪🇸', avgCPM: 0.04, lang: 'es' },
+  BR: { code: 'BR', name: '브라질', flag: '🇧🇷', avgCPM: 0.02, lang: 'pt' },
+  DE: { code: 'DE', name: '독일', flag: '🇩🇪', avgCPM: 0.06, lang: 'de' },
+  FR: { code: 'FR', name: '프랑스', flag: '🇫🇷', avgCPM: 0.04, lang: 'fr' },
+  MX: { code: 'MX', name: '멕시코', flag: '🇲🇽', avgCPM: 0.02, lang: 'es' },
+  GB: { code: 'GB', name: '영국', flag: '🇬🇧', avgCPM: 0.07, lang: 'en' },
+  AU: { code: 'AU', name: '호주', flag: '🇦🇺', avgCPM: 0.07, lang: 'en' },
+  CA: { code: 'CA', name: '캐나다', flag: '🇨🇦', avgCPM: 0.06, lang: 'en' },
+  NO: { code: 'NO', name: '노르웨이', flag: '🇳🇴', avgCPM: 0.09, lang: 'no' },
+  CH: { code: 'CH', name: '스위스', flag: '🇨🇭', avgCPM: 0.08, lang: 'de' },
 };
 
 export const CATEGORY_MAP: Record<string, string> = {

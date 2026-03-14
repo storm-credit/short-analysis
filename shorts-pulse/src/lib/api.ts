@@ -1,5 +1,5 @@
 import { ShortVideo, CategoryBenchmark } from '@/types';
-import { SHORTS_MAX_DURATION, CACHE_EXPIRY_HOURS, STORAGE_KEYS } from './constants';
+import { SHORTS_MAX_DURATION, CACHE_EXPIRY_HOURS, STORAGE_KEYS, REGIONS } from './constants';
 import { parseDurationToSeconds, getThumbnail, hoursAge } from './utils';
 import { calculateViralityScore, buildCategoryBenchmarks, getTier } from './scoring';
 
@@ -170,18 +170,19 @@ interface ShortsResult {
 }
 
 async function fetchShorts(regionCode: string): Promise<ShortsResult> {
-  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v3`;
+  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v4`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached as unknown as ShortsResult;
 
   const maxPerQuery = 25;
+  const lang = REGIONS[regionCode]?.lang || 'en';
 
-  // Step 1: 12개 주제별 병렬 검색
+  // Step 1: 12개 주제별 병렬 검색 (relevanceLanguage로 해당 언어 콘텐츠 우선)
   const searchResults = await Promise.all(
     TOPIC_QUERIES.map((tq) =>
       fetchWithFallback(
         (key) =>
-          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(tq.query)}&maxResults=${maxPerQuery}&key=${key}`
+          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&relevanceLanguage=${lang}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(tq.query)}&maxResults=${maxPerQuery}&key=${key}`
       ).catch(() => ({ items: [] }))
     )
   );
