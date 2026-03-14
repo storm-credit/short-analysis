@@ -212,3 +212,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Next.js
+shorts-pulse/node_modules/
+shorts-pulse/.next/
+
+# Allow shorts-pulse src/lib (overrides Python lib/ ignore)
+!shorts-pulse/src/
+!shorts-pulse/src/lib/
+!shorts-pulse/src/lib/**
