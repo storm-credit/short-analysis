@@ -5,7 +5,6 @@ import { Chart, registerables } from 'chart.js';
 import { ShortVideo } from '@/types';
 import { CATEGORY_MAP } from '@/lib/constants';
 import { formatNumber } from '@/lib/utils';
-import { useReveal } from '@/lib/hooks';
 
 Chart.register(...registerables);
 
@@ -36,7 +35,6 @@ function useChart(
 }
 
 export default function Charts({ shorts }: ChartsProps) {
-  const ref = useReveal();
   const viralityRef = useRef<HTMLCanvasElement>(null);
   const viralityChartRef = useRef<Chart | null>(null);
   const categoryRef = useRef<HTMLCanvasElement>(null);
@@ -44,9 +42,8 @@ export default function Charts({ shorts }: ChartsProps) {
   const scatterRef = useRef<HTMLCanvasElement>(null);
   const scatterChartRef = useRef<Chart | null>(null);
 
-  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-  const textColor = isDark ? '#A1A1A6' : '#86868B';
-  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const textColor = '#A1A1A6';
+  const gridColor = 'rgba(255,255,255,0.06)';
 
   // Virality Distribution
   const bins = [0, 0, 0, 0, 0];
@@ -74,12 +71,12 @@ export default function Charts({ shorts }: ChartsProps) {
         y: { grid: { color: gridColor }, ticks: { color: textColor, stepSize: 1 } },
       },
     },
-  }, [shorts, isDark]);
+  }, [shorts]);
 
   // Category Breakdown
   const catCounts: Record<string, number> = {};
   shorts.forEach((v) => {
-    const cat = CATEGORY_MAP[v.categoryId] || 'Other';
+    const cat = CATEGORY_MAP[v.categoryId] || '기타';
     catCounts[cat] = (catCounts[cat] || 0) + 1;
   });
   const sortedCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
@@ -106,7 +103,7 @@ export default function Charts({ shorts }: ChartsProps) {
         },
       },
     },
-  }, [shorts, isDark]);
+  }, [shorts]);
 
   // Scatter: Views vs Engagement
   const scatterData = shorts.map((v) => ({
@@ -140,44 +137,46 @@ export default function Charts({ shorts }: ChartsProps) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             label: (ctx: any) => {
               const d = ctx.raw;
-              return `${d.label}... | Views: ${formatNumber(d.x)} | Eng: ${d.y.toFixed(2)}% | Score: ${d.score}`;
+              return `${d.label}... | 조회수: ${formatNumber(d.x)} | 참여: ${d.y.toFixed(2)}% | 점수: ${d.score}`;
             },
           },
         },
       },
       scales: {
         x: {
-          title: { display: true, text: 'Views', color: textColor },
+          title: { display: true, text: '조회수', color: textColor },
           grid: { color: gridColor },
           ticks: { color: textColor, callback: (v: unknown) => formatNumber(v as number) },
         },
         y: {
-          title: { display: true, text: 'Engagement Rate %', color: textColor },
+          title: { display: true, text: '참여율 %', color: textColor },
           grid: { color: gridColor },
           ticks: { color: textColor },
         },
       },
     },
-  }, [shorts, isDark]);
+  }, [shorts]);
 
   if (shorts.length === 0) return null;
 
   return (
-    <section id="analytics" ref={ref} className="reveal max-w-[1200px] mx-auto px-6 pb-24">
-      <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-tight mb-2">Analytics</h2>
-      <p className="text-[17px] text-[#86868B] mb-10">Insights from today&apos;s trending shorts</p>
+    <section className="max-w-[1080px] mx-auto px-4">
+      <div className="text-center mb-12">
+        <h2 className="section-headline">분석</h2>
+        <p className="section-subheadline">오늘의 트렌딩 쇼츠 인사이트</p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="glass-card p-6">
-          <h3 className="text-[15px] font-semibold text-[#86868B] mb-4">Virality Score Distribution</h3>
+          <h3 className="text-[15px] font-semibold text-[#A1A1A6] mb-4">바이럴 점수 분포</h3>
           <canvas ref={viralityRef} />
         </div>
         <div className="glass-card p-6">
-          <h3 className="text-[15px] font-semibold text-[#86868B] mb-4">Category Breakdown</h3>
+          <h3 className="text-[15px] font-semibold text-[#A1A1A6] mb-4">카테고리 비율</h3>
           <canvas ref={categoryRef} />
         </div>
         <div className="glass-card p-6 md:col-span-2">
-          <h3 className="text-[15px] font-semibold text-[#86868B] mb-4">Views vs Engagement Rate</h3>
+          <h3 className="text-[15px] font-semibold text-[#A1A1A6] mb-4">조회수 vs 참여율</h3>
           <canvas ref={scatterRef} style={{ maxHeight: 360 }} />
         </div>
       </div>

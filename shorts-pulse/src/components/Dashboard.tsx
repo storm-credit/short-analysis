@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ShortVideo, SortKey, ViewMode } from '@/types';
-import { REGIONS } from '@/lib/constants';
-import { useReveal } from '@/lib/hooks';
+import { REGIONS, CATEGORY_MAP, QA_STYLE_KEYWORDS } from '@/lib/constants';
 import ShortCard from './ShortCard';
 import ShortListItem from './ShortListItem';
 import DetailModal from './DetailModal';
@@ -15,88 +14,153 @@ interface DashboardProps {
   currentDate: string;
 }
 
+type CategoryFilter = 'all' | 'qa-style' | string;
+
+function isQAStyle(video: ShortVideo): boolean {
+  const title = video.title.toLowerCase();
+  return QA_STYLE_KEYWORDS.some((kw) => title.includes(kw.toLowerCase()));
+}
+
 export default function Dashboard({ shorts, currentRegion, currentDate }: DashboardProps) {
   const [sortKey, setSortKey] = useState<SortKey>('viralityScore');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [selectedVideo, setSelectedVideo] = useState<ShortVideo | null>(null);
-  const ref = useReveal();
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
-  const sorted = [...shorts].sort((a, b) => {
-    const va = a[sortKey] ?? 0;
-    const vb = b[sortKey] ?? 0;
-    return (vb as number) - (va as number);
-  });
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    shorts.forEach((v) => cats.add(v.categoryId));
+    return Array.from(cats)
+      .map((id) => ({ id, name: CATEGORY_MAP[id] || `카테고리 ${id}` }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [shorts]);
+
+  const filtered = useMemo(() => {
+    let result = shorts;
+    if (categoryFilter === 'qa-style') {
+      result = shorts.filter(isQAStyle);
+    } else if (categoryFilter !== 'all') {
+      result = shorts.filter((v) => v.categoryId === categoryFilter);
+    }
+    return [...result].sort((a, b) => {
+      const va = (a[sortKey] as number) ?? 0;
+      const vb = (b[sortKey] as number) ?? 0;
+      return vb - va;
+    });
+  }, [shorts, sortKey, categoryFilter]);
 
   const sortOptions: { key: SortKey; label: string }[] = [
-    { key: 'viralityScore', label: 'Virality' },
-    { key: 'viewCount', label: 'Views' },
-    { key: 'viewsPerHour', label: 'Velocity' },
-    { key: 'engagementRate', label: 'Engagement' },
+    { key: 'viralityScore', label: '바이럴' },
+    { key: 'viewCount', label: '조회수' },
+    { key: 'viewsPerHour', label: '속도' },
+    { key: 'engagementRate', label: '참여도' },
   ];
 
   const regionName = REGIONS[currentRegion]?.name || currentRegion;
+  const qaCount = shorts.filter(isQAStyle).length;
 
   return (
-    <section id="dashboard" ref={ref} className="reveal max-w-[1200px] mx-auto px-6 pb-24">
+    <section className="max-w-[1080px] mx-auto px-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-        <div>
-          <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-tight">Top Shorts</h2>
-          <p className="text-[17px] text-[#86868B]">
-            {shorts.length} shorts from {regionName} trending · {currentDate}
-          </p>
+      <div className="text-center mb-10">
+        <h2 className="section-headline">인기 쇼츠</h2>
+        <p className="section-subheadline">
+          {regionName}에서 트렌딩 중인 {filtered.length}개 쇼츠 · {currentDate}
+        </p>
+      </div>
+
+      {/* Sort + View Controls */}
+      <div className="flex gap-2 items-center justify-center mb-4 flex-wrap">
+        <div className="pill-control">
+          {sortOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setSortKey(opt.key)}
+              className={`pill-btn ${sortKey === opt.key ? 'active' : ''}`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-        <div className="flex gap-2 items-center">
-          <div className="pill-control">
-            {sortOptions.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setSortKey(opt.key)}
-                className={`pill-btn ${sortKey === opt.key ? 'active' : ''}`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <div className="pill-control">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`pill-btn !px-3 ${viewMode === 'grid' ? 'active' : ''}`}
-            >
-              <LayoutGrid size={14} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`pill-btn !px-3 ${viewMode === 'list' ? 'active' : ''}`}
-            >
-              <List size={14} />
-            </button>
-          </div>
+        <div className="pill-control">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`pill-btn !px-3 ${viewMode === 'grid' ? 'active' : ''}`}
+          >
+            <LayoutGrid size={14} />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`pill-btn !px-3 ${viewMode === 'list' ? 'active' : ''}`}
+          >
+            <List size={14} />
+          </button>
         </div>
       </div>
 
+      {/* Category Filter */}
+      <div className="flex gap-1.5 items-center justify-center mb-10 flex-wrap">
+        <button
+          onClick={() => setCategoryFilter('all')}
+          className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all ${
+            categoryFilter === 'all'
+              ? 'bg-[#0071E3] text-white'
+              : 'bg-black/[0.04] text-[#86868B] hover:bg-black/[0.08]'
+          }`}
+        >
+          전체 ({shorts.length})
+        </button>
+        <button
+          onClick={() => setCategoryFilter('qa-style')}
+          className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all ${
+            categoryFilter === 'qa-style'
+              ? 'bg-[#FF9500] text-white'
+              : 'bg-black/[0.04] text-[#86868B] hover:bg-black/[0.08]'
+          }`}
+        >
+          Q&A/비교형 ({qaCount})
+        </button>
+        {availableCategories.map((cat) => {
+          const count = shorts.filter((v) => v.categoryId === cat.id).length;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setCategoryFilter(cat.id)}
+              className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all ${
+                categoryFilter === cat.id
+                  ? 'bg-[#1D1D1F] text-white'
+                  : 'bg-black/[0.04] text-[#86868B] hover:bg-black/[0.08]'
+              }`}
+            >
+              {cat.name} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {/* Content */}
-      {sorted.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-20 text-[#86868B]">
           <Film size={48} className="mx-auto mb-4 opacity-30" />
-          <p className="text-[17px] font-medium">No shorts found in trending</p>
-          <p className="text-sm mt-2">Try a different date or region</p>
+          <p className="text-[17px] font-medium">
+            {categoryFilter === 'qa-style' ? 'Q&A/비교형 쇼츠가 없습니다' : '트렌딩 쇼츠가 없습니다'}
+          </p>
+          <p className="text-sm mt-2">다른 필터나 지역을 선택해보세요</p>
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {sorted.map((v) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+          {filtered.map((v) => (
             <ShortCard key={v.id} video={v} onClick={setSelectedVideo} />
           ))}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {sorted.map((v, i) => (
+          {filtered.map((v, i) => (
             <ShortListItem key={v.id} video={v} rank={i + 1} onClick={setSelectedVideo} />
           ))}
         </div>
       )}
 
-      {/* Detail Modal */}
       {selectedVideo && (
         <DetailModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
       )}

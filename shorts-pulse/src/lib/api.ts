@@ -48,7 +48,10 @@ async function fetchWithFallback(urlBuilder: (key: string) => string): Promise<R
     const idx = (currentKeyIndex + i) % apiKeys.length;
     const url = urlBuilder(apiKeys[idx]);
     try {
-      const res = await fetch(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
       const json = await res.json();
       if (res.ok) {
         currentKeyIndex = idx;
@@ -278,13 +281,16 @@ export async function fetchAllRegions(
 export function generateMockShorts(count: number): ShortVideo[] {
   const channels = ['MrBeast Shorts', 'Dude Perfect', 'Like Nastya', 'Stokes Twins', 'ZHC', 'Brent Rivera', 'Alan Chikin Chow', 'Ben Azelart', 'Bayashi TV', 'CookingTree'];
   const titles = [
-    'You Won\'t Believe What Happened! 😱', 'This Trick Will Blow Your Mind 🤯',
-    'I Tried the Viral Trend... 🔥', 'Testing the IMPOSSIBLE Challenge',
-    'World Record Attempt Gone Wrong', '$1 vs $1000 Challenge!',
-    'When Your Friend Does THIS...', 'Rating Subscriber Ideas 🎯',
-    'The Secret Nobody Tells You', 'How To Go VIRAL in 2024 📈',
+    'Why Do We Dream? The Real Science 🧠', '$1 vs $1000 Challenge!',
+    'How AI Actually Works — Explained Simply', 'Testing the IMPOSSIBLE Challenge',
+    'iPhone vs Samsung — Which is BEST?', 'The Secret Nobody Tells You 🤫',
+    'Why Japan is Different from Korea?', 'Top 5 Hidden Tricks You Didn\'t Know 🎯',
+    'Did You Know This About Space? 🚀', 'How To Go VIRAL in 2024 📈',
+    'Which Country Pays More? Compare!', 'The Truth About Social Media 😱',
+    'Best Productivity Hack Ever', 'What Happens If You Stop Eating Sugar?',
+    'Ranking Fast Food — Worst to Best', 'Why Nobody Talks About This...',
   ];
-  const cats = ['20', '22', '23', '24', '26'];
+  const cats = ['27', '28', '22', '24', '26', '20', '23'];
   const shorts: ShortVideo[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -301,7 +307,7 @@ export function generateMockShorts(count: number): ShortVideo[] {
       thumbnail: `https://picsum.photos/seed/short${i}/270/480`,
       publishedAt: published,
       categoryId: cats[i % cats.length],
-      tags: [],
+      tags: ['shorts', 'trending', 'viral'],
       viewCount: views,
       likeCount: Math.floor(views * (0.02 + Math.random() * 0.06)),
       commentCount: Math.floor(views * (0.001 + Math.random() * 0.005)),

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ShortVideo, RegionCode } from '@/types';
+import { ShortVideo, RegionCode, TabId } from '@/types';
 import { REGIONS } from '@/lib/constants';
 import {
   loadApiKeys,
@@ -18,15 +18,17 @@ import Dashboard from '@/components/Dashboard';
 import Charts from '@/components/Charts';
 import RegionalComparison from '@/components/RegionalComparison';
 import Settings from '@/components/Settings';
+import Insights from '@/components/Insights';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import DetailModal from '@/components/DetailModal';
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<TabId>('trending');
   const [currentRegion, setCurrentRegion] = useState<RegionCode>('US');
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [shortsData, setShortsData] = useState<Record<string, ShortVideo[]>>({});
   const [loading, setLoading] = useState(false);
-  const [loadingText, setLoadingText] = useState('Loading...');
+  const [loadingText, setLoadingText] = useState('로딩 중...');
   const [toast, setToast] = useState('');
   const [selectedRegionalVideo, setSelectedRegionalVideo] = useState<ShortVideo | null>(null);
 
@@ -42,7 +44,6 @@ export default function Home() {
 
     try {
       if (!isToday) {
-        // Check for snapshots
         let hasSnapshot = false;
         const regionCodes = Object.keys(REGIONS);
         const snapData: Record<string, ShortVideo[]> = {};
@@ -55,12 +56,12 @@ export default function Home() {
         });
         if (hasSnapshot) {
           setShortsData(snapData);
-          showToast(`Showing cached data for ${currentDate}`);
+          showToast(`${currentDate} 캐시 데이터 표시 중`);
           setLoading(false);
           return;
         } else {
           setShortsData({});
-          showToast(`No historical data for ${currentDate}. Data is recorded daily from first use.`);
+          showToast(`${currentDate} 데이터 없음. 첫 사용일부터 매일 기록됩니다.`);
           setLoading(false);
           return;
         }
@@ -69,29 +70,27 @@ export default function Home() {
       const apiKeys = loadApiKeys();
 
       if (apiKeys.length === 0) {
-        // Demo mode
         const mockData: Record<string, ShortVideo[]> = {};
         Object.keys(REGIONS).forEach((code) => {
           mockData[code] = generateMockShorts(Math.floor(Math.random() * 12) + 8);
         });
         setShortsData(mockData);
-        showToast('Demo mode — Add YouTube API keys in Settings for real data');
+        showToast('데모 모드 — 설정에서 YouTube API 키를 추가하세요');
       } else {
         const regionCodes = Object.keys(REGIONS);
         const result = await fetchAllRegions(regionCodes, setLoadingText);
 
-        // Save snapshots
         regionCodes.forEach((code) => {
           saveSnapshot(currentDate, code, result.shortsOnly[code] || []);
         });
 
         setShortsData(result.shortsOnly);
         const totalShorts = Object.values(result.shortsOnly).reduce((s, arr) => s + arr.length, 0);
-        showToast(`Loaded ${totalShorts} shorts across ${regionCodes.length} regions`);
+        showToast(`${regionCodes.length}개 지역에서 ${totalShorts}개 쇼츠 로드 완료`);
       }
     } catch (error) {
       console.error('Load error:', error);
-      showToast('Error: ' + (error as Error).message);
+      showToast('오류: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -127,47 +126,77 @@ export default function Home() {
   const currentShorts = shortsData[currentRegion] || [];
 
   return (
-    <>
-      <FloatingNav />
+    <div className="min-h-screen bg-black">
+      {/* Fixed Header: Nav + Hero */}
+      <div className="section-dark">
+        <FloatingNav activeTab={activeTab} onTabChange={setActiveTab} />
+        <Hero
+          currentDate={currentDate}
+          currentRegion={currentRegion}
+          onDateChange={handleDateChange}
+          onRegionChange={setCurrentRegion}
+          onRefresh={handleRefresh}
+          onPrevDay={handlePrevDay}
+          onNextDay={handleNextDay}
+        />
+      </div>
 
-      <Hero
-        currentDate={currentDate}
-        currentRegion={currentRegion}
-        onDateChange={handleDateChange}
-        onRegionChange={setCurrentRegion}
-        onRefresh={handleRefresh}
-        onPrevDay={handlePrevDay}
-        onNextDay={handleNextDay}
-      />
+      {/* Tab Content */}
+      <div className="tab-content">
+        {activeTab === 'trending' && (
+          <div className="section-light py-10 md:py-16">
+            <StatsBar shorts={currentShorts} />
+            <div className="mt-12">
+              <Dashboard
+                shorts={currentShorts}
+                currentRegion={currentRegion}
+                currentDate={currentDate}
+              />
+            </div>
+          </div>
+        )}
 
-      <StatsBar shorts={currentShorts} />
+        {activeTab === 'analytics' && (
+          <div className="section-dark py-10 md:py-16">
+            <Charts shorts={currentShorts} />
+          </div>
+        )}
 
-      <Dashboard
-        shorts={currentShorts}
-        currentRegion={currentRegion}
-        currentDate={currentDate}
-      />
+        {activeTab === 'regional' && (
+          <div className="section-light py-10 md:py-16">
+            <RegionalComparison
+              shortsData={shortsData}
+              onVideoClick={setSelectedRegionalVideo}
+            />
+          </div>
+        )}
 
-      <Charts shorts={currentShorts} />
+        {activeTab === 'insights' && (
+          <div className="section-light py-10 md:py-16">
+            <Insights shorts={currentShorts} allRegionShorts={shortsData} />
+          </div>
+        )}
 
-      <RegionalComparison
-        shortsData={shortsData}
-        onVideoClick={setSelectedRegionalVideo}
-      />
-
-      <Settings onKeysChanged={loadData} />
+        {activeTab === 'settings' && (
+          <div className="section-gray py-10 md:py-16">
+            <Settings onKeysChanged={loadData} />
+          </div>
+        )}
+      </div>
 
       {/* Footer */}
-      <footer className="text-center py-10 px-6 text-[#86868B] text-[13px] border-t border-black/[0.04] dark:border-white/[0.06]">
-        <p>Shorts Pulse — YouTube Shorts Trending Dashboard</p>
-        <p className="mt-1 opacity-70">Built with YouTube Data API v3 · Powered by intelligent virality scoring</p>
-      </footer>
+      <div className="section-dark">
+        <footer className="text-center py-12 px-6 text-[#86868B] text-[13px] border-t border-white/[0.06]">
+          <p className="font-medium">Shorts Pulse</p>
+          <p className="mt-2 opacity-60">YouTube Shorts 트렌딩 대시보드 · 바이럴 점수 알고리즘</p>
+        </footer>
+      </div>
 
       <LoadingOverlay show={loading} text={loadingText} />
 
       {/* Toast */}
       <div
-        className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl bg-[#1D1D1F] dark:bg-[#F5F5F7] text-white dark:text-[#1D1D1F] text-sm font-medium z-[100000] shadow-xl pointer-events-none transition-transform duration-400 ${
+        className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl bg-[#F5F5F7] text-[#1D1D1F] text-sm font-medium z-[100000] shadow-xl pointer-events-none transition-transform duration-400 ${
           toast ? 'translate-y-0' : 'translate-y-[120px]'
         }`}
       >
@@ -178,6 +207,6 @@ export default function Home() {
       {selectedRegionalVideo && (
         <DetailModal video={selectedRegionalVideo} onClose={() => setSelectedRegionalVideo(null)} />
       )}
-    </>
+    </div>
   );
 }

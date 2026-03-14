@@ -1,11 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Moon, Sun } from 'lucide-react';
+import { TabId } from '@/types';
 
-export default function FloatingNav() {
-  const [activeSection, setActiveSection] = useState('hero');
+interface FloatingNavProps {
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
+}
+
+const tabs: { id: TabId; label: string }[] = [
+  { id: 'trending', label: '트렌딩' },
+  { id: 'analytics', label: '분석' },
+  { id: 'regional', label: '지역' },
+  { id: 'insights', label: '인사이트' },
+  { id: 'settings', label: '설정' },
+];
+
+export default function FloatingNav({ activeTab, onTabChange }: FloatingNavProps) {
   const [isDark, setIsDark] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('darkMode');
@@ -15,15 +29,7 @@ export default function FloatingNav() {
     }
 
     const handleScroll = () => {
-      const sections = ['hero', 'dashboard', 'analytics', 'regional', 'settings'];
-      const scrollPos = window.scrollY + 120;
-      for (const id of sections) {
-        const el = document.getElementById(id);
-        if (el && scrollPos >= el.offsetTop && scrollPos < el.offsetTop + el.offsetHeight) {
-          setActiveSection(id);
-          break;
-        }
-      }
+      setScrolled(window.scrollY > 30);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -37,36 +43,25 @@ export default function FloatingNav() {
     localStorage.setItem('darkMode', String(next));
   };
 
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const navItems = [
-    { id: 'hero', label: '🔥 Trending' },
-    { id: 'analytics', label: '📊 Analytics' },
-    { id: 'regional', label: '🌍 Regions' },
-    { id: 'settings', label: '⚙️' },
-  ];
-
   return (
-    <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] glass rounded-full px-1.5 py-1.5 flex gap-0.5 shadow-lg">
-      {navItems.map((item) => (
+    <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] nav-glass ${scrolled ? 'scrolled' : ''} rounded-full px-1.5 py-1.5 flex gap-0.5`}>
+      {tabs.map((tab) => (
         <button
-          key={item.id}
-          onClick={() => scrollTo(item.id)}
+          key={tab.id}
+          onClick={() => onTabChange(tab.id)}
           className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-300 whitespace-nowrap ${
-            activeSection === item.id
-              ? 'bg-[#1D1D1F] text-white dark:bg-[#F5F5F7] dark:text-[#1D1D1F]'
-              : 'text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04] dark:hover:text-[#F5F5F7] dark:hover:bg-white/[0.06]'
+            activeTab === tab.id
+              ? 'bg-[#F5F5F7] text-[#1D1D1F]'
+              : 'text-[#A1A1A6] hover:text-[#F5F5F7] hover:bg-white/[0.06]'
           }`}
         >
-          {item.label}
+          {tab.label}
         </button>
       ))}
       <button
         onClick={toggleDark}
-        className="px-3 py-2 rounded-full text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.04] dark:hover:text-[#F5F5F7] dark:hover:bg-white/[0.06] transition-all duration-300"
-        title="Toggle Dark Mode"
+        className="px-3 py-2 rounded-full text-[#A1A1A6] hover:text-[#F5F5F7] hover:bg-white/[0.06] transition-all duration-300"
+        title="다크 모드 전환"
       >
         {isDark ? <Sun size={16} /> : <Moon size={16} />}
       </button>

@@ -55,8 +55,32 @@ export interface RegionInfo {
 export interface CategoryBenchmark {
   medianViews: number;
   avgVPH: number;
+  medianVPH: number;
 }
 
 export type SortKey = 'viralityScore' | 'viewCount' | 'viewsPerHour' | 'engagementRate';
 export type ViewMode = 'grid' | 'list';
-export type RegionCode = 'US' | 'GB' | 'AU' | 'CA';
+export type RegionCode = 'US' | 'GB' | 'AU' | 'CA' | 'KR' | 'NO' | 'DE' | 'CH' | 'JP' | 'FR';
+export type TabId = 'trending' | 'analytics' | 'regional' | 'insights' | 'settings';
+
+export interface KeywordTrend {
+  keyword: string;
+  count: number;
+  avgScore: number;
+  examples: string[];
+}
+
+export interface HookPattern {
+  pattern: string;
+  description: string;
+  count: number;
+  avgScore: number;
+  examples: { title: string; score: number }[];
+}
+
+export interface ContentIdea {
+  hook: string;
+  topic: string;
+  style: string;
+  reason: string;
+}
