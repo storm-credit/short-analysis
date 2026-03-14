@@ -136,41 +136,68 @@ export function clearTrendingCache(): void {
 // ==========================================
 
 /**
- * Shorts 검색 (Search API + videoDuration=short)
- * mostPopular는 일반 영상만 반환하므로, search API로 짧은 영상을 찾은 뒤
- * videos API로 상세 데이터를 가져옴
+ * Q&A/교육형 Shorts 검색 — AskAnything 스타일
+ *
+ * 검색 전략:
+ * - 3개 카테고리 쿼리 (비교형, 질문형, 교육형)를 병렬로 검색
+ * - 각 쿼리별 maxResults=25 → 중복 제거 후 합산
+ * - 일반 인기 쇼츠(연예/음악)가 아닌, 지식/비교/Q&A 콘텐츠 위주
  */
+const QA_SEARCH_QUERIES = [
+  'did you know facts shorts',         // 알고 계셨나요? / 사실 계열
+  'vs comparison which is better',      // A vs B 비교형
+  'why how explained science',          // 왜/어떻게 교육형
+];
+
 async function fetchShorts(regionCode: string): Promise<Record<string, unknown>> {
   const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  // Step 1: Search API로 최근 인기 Shorts ID 수집
-  const searchJson = await fetchWithFallback(
-    (key) =>
-      `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&maxResults=50&key=${key}`
+  // Step 1: 3개 Q&A 쿼리 병렬 검색
+  const searchResults = await Promise.all(
+    QA_SEARCH_QUERIES.map((q) =>
+      fetchWithFallback(
+        (key) =>
+          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(q)}&maxResults=25&key=${key}`
+      ).catch(() => ({ items: [] }))
+    )
   );
 
+  // 중복 제거 후 videoId 수집
+  const idSet = new Set<string>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const videoIds = ((searchJson as any).items || [])
+  searchResults.forEach((res: any) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((item: any) => item.id?.videoId)
-    .filter(Boolean)
-    .join(',');
+    (res.items || []).forEach((item: any) => {
+      const vid = item.id?.videoId;
+      if (vid) idSet.add(vid);
+    });
+  });
 
+  const videoIds = Array.from(idSet).join(',');
   if (!videoIds) {
     cacheSet(cacheKey, { items: [] });
     return { items: [] };
   }
 
-  // Step 2: Videos API로 상세 데이터 (snippet, statistics, contentDetails)
-  const json = await fetchWithFallback(
-    (key) =>
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${key}`
-  );
+  // Step 2: Videos API로 상세 데이터 (50개씩 배치)
+  const idArray = Array.from(idSet);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let allItems: any[] = [];
+  for (let i = 0; i < idArray.length; i += 50) {
+    const batch = idArray.slice(i, i + 50).join(',');
+    const json = await fetchWithFallback(
+      (key) =>
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${batch}&key=${key}`
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allItems = allItems.concat((json as any).items || []);
+  }
 
-  cacheSet(cacheKey, json);
-  return json;
+  const result = { items: allItems };
+  cacheSet(cacheKey, result);
+  return result;
 }
 
 /** 최근 3일 이내 발행된 영상만 검색 */
