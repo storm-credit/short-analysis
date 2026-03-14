@@ -78,7 +78,7 @@ export default function Home() {
         showToast('데모 모드 — 설정에서 YouTube API 키를 추가하세요');
       } else {
         const regionCodes = Object.keys(REGIONS);
-        const result = await fetchAllRegions(regionCodes, setLoadingText);
+        const result = await fetchAllRegions(regionCodes, setLoadingText, currentRegion);
 
         regionCodes.forEach((code) => {
           saveSnapshot(currentDate, code, result.shortsOnly[code] || []);

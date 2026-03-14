@@ -139,27 +139,46 @@ export function clearTrendingCache(): void {
  * Q&A/교육형 Shorts 검색 — AskAnything 스타일
  *
  * 검색 전략:
- * - 3개 카테고리 쿼리 (비교형, 질문형, 교육형)를 병렬로 검색
- * - 각 쿼리별 maxResults=25 → 중복 제거 후 합산
+ * - 12개 주제 카테고리 쿼리를 병렬로 검색
+ * - 각 쿼리별 maxResults=30 → 중복 제거 후 합산
  * - 일반 인기 쇼츠(연예/음악)가 아닌, 지식/비교/Q&A 콘텐츠 위주
+ *
+ * Quota: 12쿼리 × 10지역 = 120 search = 12,000 units
+ * → 선택 지역만 전체 검색, 나머지는 핵심 4개만 검색
  */
-const QA_SEARCH_QUERIES = [
-  'did you know facts shorts',         // 알고 계셨나요? / 사실 계열
-  'vs comparison which is better',      // A vs B 비교형
-  'why how explained science',          // 왜/어떻게 교육형
+const CORE_QUERIES = [
+  'did you know amazing facts',             // 상식/놀라운 사실
+  'vs comparison which is better',           // A vs B 비교형
+  'why how science explained',               // 과학/교육
+  'top ranking best worst',                  // 랭킹/순위형
 ];
 
-async function fetchShorts(regionCode: string): Promise<Record<string, unknown>> {
+const EXTENDED_QUERIES = [
+  'animals nature wildlife amazing',         // 동물/자연
+  'space universe aliens planet',            // 우주/SF
+  'history what happened explained',         // 역사/시사
+  'human body health facts',                 // 인체/건강
+  'psychology mind brain facts',             // 심리/상식
+  'country culture difference compare',      // 나라별 차이/비교
+  'food nutrition myth truth',               // 음식/건강 상식
+  'technology AI future invention',          // 테크/미래
+];
+
+async function fetchShorts(regionCode: string, useExtended: boolean = false): Promise<Record<string, unknown>> {
   const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  // Step 1: 3개 Q&A 쿼리 병렬 검색
+  // 선택 지역 = 12개 전체 쿼리, 나머지 = 4개 핵심 쿼리 (quota 절약)
+  const queries = useExtended ? [...CORE_QUERIES, ...EXTENDED_QUERIES] : CORE_QUERIES;
+  const maxPerQuery = useExtended ? 30 : 25;
+
+  // Step 1: Q&A 쿼리 병렬 검색
   const searchResults = await Promise.all(
-    QA_SEARCH_QUERIES.map((q) =>
+    queries.map((q) =>
       fetchWithFallback(
         (key) =>
-          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(q)}&maxResults=25&key=${key}`
+          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(q)}&maxResults=${maxPerQuery}&key=${key}`
       ).catch(() => ({ items: [] }))
     )
   );
@@ -310,20 +329,29 @@ export interface FetchResult {
 
 export async function fetchAllRegions(
   regionCodes: string[],
-  onProgress?: (msg: string) => void
+  onProgress?: (msg: string) => void,
+  focusRegion?: string
 ): Promise<FetchResult> {
+  const focus = focusRegion || regionCodes[0];
+
+  // Quota 최적화: 선택 지역은 확장 검색(12쿼리), 나머지는 핵심만(4쿼리)
+  // 트렌딩(mostPopular)는 1 unit이므로 전 지역 가능
   onProgress?.(`${regionCodes.length}개 지역에서 쇼츠 검색 중...`);
 
-  // Shorts 검색 (Search API) + 트렌딩 (벤치마크용) 동시 요청
   const [shortsResults, trendingResults] = await Promise.all([
-    Promise.all(
-      regionCodes.map((code) =>
-        fetchShorts(code).catch((e) => {
+    // Shorts: 순차적으로 (선택 지역 먼저, 캐시 있으면 빠르게 통과)
+    (async () => {
+      const results: Record<string, unknown>[] = [];
+      for (const code of regionCodes) {
+        try {
+          results.push(await fetchShorts(code, code === focus));
+        } catch (e) {
           console.warn(`Failed to fetch shorts ${code}:`, e);
-          return { items: [] };
-        })
-      )
-    ),
+          results.push({ items: [] });
+        }
+      }
+      return results;
+    })(),
     Promise.all(
       regionCodes.map((code) =>
         fetchTrending(code).catch((e) => {
