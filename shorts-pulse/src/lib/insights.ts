@@ -318,8 +318,9 @@ export function analyzeTimingPatterns(shorts: ShortVideo[]): TimingInsight {
   const durBuckets = [
     { label: '~15초', min: 0, max: 15 },
     { label: '16~30초', min: 16, max: 30 },
-    { label: '31~45초', min: 31, max: 45 },
-    { label: '46~60초', min: 46, max: 60 },
+    { label: '31~60초', min: 31, max: 60 },
+    { label: '1~2분', min: 61, max: 120 },
+    { label: '2~3분', min: 121, max: 180 },
   ];
 
   const durationBuckets = durBuckets.map(({ label, min, max }) => {

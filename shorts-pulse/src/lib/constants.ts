@@ -43,7 +43,7 @@ export const QA_STYLE_KEYWORDS = [
   'secret', 'fact', 'myth', 'real reason', 'actually',
 ];
 
-export const SHORTS_MAX_DURATION = 60;
+export const SHORTS_MAX_DURATION = 180; // YouTube Shorts 최대 3분 (2024년 확장)
 export const CACHE_EXPIRY_HOURS = 2;
 
 export const STORAGE_KEYS = {

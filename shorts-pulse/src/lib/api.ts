@@ -134,6 +134,53 @@ export function clearTrendingCache(): void {
 // ==========================================
 // API Calls
 // ==========================================
+
+/**
+ * Shorts 검색 (Search API + videoDuration=short)
+ * mostPopular는 일반 영상만 반환하므로, search API로 짧은 영상을 찾은 뒤
+ * videos API로 상세 데이터를 가져옴
+ */
+async function fetchShorts(regionCode: string): Promise<Record<string, unknown>> {
+  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  // Step 1: Search API로 최근 인기 Shorts ID 수집
+  const searchJson = await fetchWithFallback(
+    (key) =>
+      `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&publishedAfter=${getRecentDate()}&maxResults=50&key=${key}`
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const videoIds = ((searchJson as any).items || [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((item: any) => item.id?.videoId)
+    .filter(Boolean)
+    .join(',');
+
+  if (!videoIds) {
+    cacheSet(cacheKey, { items: [] });
+    return { items: [] };
+  }
+
+  // Step 2: Videos API로 상세 데이터 (snippet, statistics, contentDetails)
+  const json = await fetchWithFallback(
+    (key) =>
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${key}`
+  );
+
+  cacheSet(cacheKey, json);
+  return json;
+}
+
+/** 최근 3일 이내 발행된 영상만 검색 */
+function getRecentDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 3);
+  return d.toISOString();
+}
+
+/** 기존 트렌딩 (일반 영상) — 벤치마크용으로 유지 */
 async function fetchTrending(regionCode: string): Promise<Record<string, unknown>> {
   const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_trending`;
   const cached = cacheGet(cacheKey);
@@ -238,37 +285,60 @@ export async function fetchAllRegions(
   regionCodes: string[],
   onProgress?: (msg: string) => void
 ): Promise<FetchResult> {
-  onProgress?.('Fetching trending videos from 4 regions...');
+  onProgress?.(`${regionCodes.length}개 지역에서 쇼츠 검색 중...`);
 
-  const results = await Promise.all(
-    regionCodes.map((code) =>
-      fetchTrending(code).catch((e) => {
-        console.warn(`Failed to fetch ${code}:`, e);
-        return { items: [] };
-      })
-    )
-  );
+  // Shorts 검색 (Search API) + 트렌딩 (벤치마크용) 동시 요청
+  const [shortsResults, trendingResults] = await Promise.all([
+    Promise.all(
+      regionCodes.map((code) =>
+        fetchShorts(code).catch((e) => {
+          console.warn(`Failed to fetch shorts ${code}:`, e);
+          return { items: [] };
+        })
+      )
+    ),
+    Promise.all(
+      regionCodes.map((code) =>
+        fetchTrending(code).catch((e) => {
+          console.warn(`Failed to fetch trending ${code}:`, e);
+          return { items: [] };
+        })
+      )
+    ),
+  ]);
 
-  // Collect channel IDs
+  // Collect channel IDs from both sources
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allItems = results.flatMap((r: any) => r.items || []);
+  const allItems = [...shortsResults, ...trendingResults].flatMap((r: any) => r.items || []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const channelIds = [...new Set(allItems.map((i: any) => i.snippet?.channelId).filter(Boolean))] as string[];
 
-  onProgress?.('Analyzing channel data...');
+  onProgress?.('채널 데이터 분석 중...');
   const subMap = await fetchChannelSubscribers(channelIds);
 
-  onProgress?.('Calculating virality scores...');
+  onProgress?.('바이럴 점수 계산 중...');
 
   const shortsOnly: Record<string, ShortVideo[]> = {};
   const allTrending: Record<string, ShortVideo[]> = {};
 
   regionCodes.forEach((code, i) => {
-    const processed = processVideos(results[i], subMap);
-    const shorts = filterShorts(processed);
-    allTrending[code] = processed;
+    // 트렌딩 데이터 (벤치마크 기준)
+    const trendingProcessed = processVideos(trendingResults[i], subMap);
+    allTrending[code] = trendingProcessed;
 
-    const benchmarks = buildCategoryBenchmarks(processed);
+    // Shorts 데이터 (Search API 결과)
+    const shortsProcessed = processVideos(shortsResults[i], subMap);
+    // 3분(180초) 이하만 필터
+    const shorts = shortsProcessed.filter((v) => v.durationSec <= SHORTS_MAX_DURATION);
+
+    // 트렌딩에서도 Shorts 추출 (중복 제거)
+    const shortsFromTrending = filterShorts(trendingProcessed);
+    const existingIds = new Set(shorts.map((v) => v.id));
+    shortsFromTrending.forEach((v) => {
+      if (!existingIds.has(v.id)) shorts.push(v);
+    });
+
+    const benchmarks = buildCategoryBenchmarks([...trendingProcessed, ...shortsProcessed]);
     shortsOnly[code] = enrichWithScores(shorts, benchmarks);
   });
 
