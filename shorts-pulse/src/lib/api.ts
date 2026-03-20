@@ -173,18 +173,23 @@ const TOPIC_QUERIES_EN = [
 /** 지역별 현지 언어 쿼리 — 해당 언어로 검색해야 인도 콘텐츠 안 섞임 */
 const TOPIC_QUERIES_LOCALIZED: Record<string, { query: string; topic: string }[]> = {
   KR: [
-    { query: '몰랐던 사실 놀라운 상식 쇼츠', topic: '상식/팩트' },
-    { query: '비교 대결 뭐가 더 좋을까 쇼츠', topic: '비교/VS' },
-    { query: '왜 어떻게 과학 설명 쇼츠', topic: '과학/교육' },
-    { query: '순위 랭킹 최고 최악 쇼츠', topic: '랭킹/순위' },
-    { query: '동물 자연 야생 신기한 쇼츠', topic: '동물/자연' },
-    { query: '우주 행성 은하 블랙홀 쇼츠', topic: '우주/SF' },
-    { query: '역사 사건 전쟁 왕조 쇼츠', topic: '역사' },
-    { query: '건강 인체 의학 상식 쇼츠', topic: '건강/인체' },
-    { query: '심리 뇌과학 행동 성격 쇼츠', topic: '심리/뇌과학' },
-    { query: '나라 문화 차이 세계 쇼츠', topic: '문화/세계' },
-    { query: '음식 영양 요리 상식 쇼츠', topic: '음식/영양' },
-    { query: '기술 AI 로봇 미래 쇼츠', topic: '테크/AI' },
+    // 넓은 인기 검색어 — '쇼츠' 제거로 검색 범위 확대
+    { query: '알고보면 몰랐던 사실 #shorts', topic: '상식/팩트' },
+    { query: '이거 실화 레전드 ㄷㄷ', topic: '상식/팩트' },
+    { query: 'vs 비교 대결 어떤게 나을까', topic: '비교/VS' },
+    { query: '왜 과학적으로 설명 알려드림', topic: '과학/교육' },
+    { query: 'TOP 순위 랭킹 1위', topic: '랭킹/순위' },
+    { query: '귀여운 동물 강아지 고양이 반응', topic: '동물/자연' },
+    { query: '우주 지구 행성 미스터리', topic: '우주/SF' },
+    { query: '역사 한국사 조선 사건', topic: '역사' },
+    { query: '건강 다이어트 운동 습관', topic: '건강/인체' },
+    { query: '심리테스트 성격 MBTI 심리', topic: '심리/뇌과학' },
+    { query: '나라별 문화 차이 한국 외국', topic: '문화/세계' },
+    { query: '맛집 레시피 음식 먹방', topic: '음식/영양' },
+    { query: 'AI 챗GPT 기술 미래', topic: '테크/AI' },
+    { query: '꿀팁 생활 해킹 알아두면', topic: '꿀팁/생활' },
+    { query: '충격 반전 소름 결말', topic: '엔터/반전' },
+    { query: '돈 재테크 주식 부동산 경제', topic: '경제/재테크' },
   ],
   JP: [
     { query: '知らなかった事実 雑学 ショート', topic: '상식/팩트' },
@@ -301,11 +306,11 @@ async function fetchShorts(regionCode: string): Promise<ShortsResult> {
   const cached = cacheGet(cacheKey);
   if (cached) return cached as unknown as ShortsResult;
 
-  const maxPerQuery = 25;
+  const queries = getTopicQueries(regionCode);
+  const maxPerQuery = 30;
   const lang = REGIONS[regionCode]?.lang || 'en';
 
   // Step 1: 지역 언어별 쿼리로 검색 (한국→한국어, 일본→일본어, 영어권→영어)
-  const queries = getTopicQueries(regionCode);
   const searchResults = await Promise.all(
     queries.map((tq) =>
       fetchWithFallback(
