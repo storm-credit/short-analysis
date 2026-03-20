@@ -174,13 +174,13 @@ const TOPIC_QUERIES_EN = [
 const TOPIC_QUERIES_LOCALIZED: Record<string, { query: string; topic: string }[]> = {
   KR: [
     // 넓은 인기 검색어 — '쇼츠' 제거로 검색 범위 확대
-    { query: '알고보면 몰랐던 사실 #shorts', topic: '상식/팩트' },
-    { query: '이거 실화 레전드 ㄷㄷ', topic: '상식/팩트' },
+    { query: '알고보면 소름 신기한 사실 진실', topic: '상식/팩트' },
+    { query: '충격적인 사실 진짜 몰랐던 이거실화', topic: '상식/팩트' },
     { query: 'vs 비교 대결 어떤게 나을까', topic: '비교/VS' },
     { query: '왜 과학적으로 설명 알려드림', topic: '과학/교육' },
     { query: 'TOP 순위 랭킹 1위', topic: '랭킹/순위' },
     { query: '귀여운 동물 강아지 고양이 반응', topic: '동물/자연' },
-    { query: '우주 지구 행성 미스터리', topic: '우주/SF' },
+    { query: '우주 NASA 블랙홀 외계인 은하', topic: '우주/SF' },
     { query: '역사 한국사 조선 사건', topic: '역사' },
     { query: '건강 다이어트 운동 습관', topic: '건강/인체' },
     { query: '심리테스트 성격 MBTI 심리', topic: '심리/뇌과학' },
@@ -302,7 +302,7 @@ interface ShortsResult {
 }
 
 async function fetchShorts(regionCode: string): Promise<ShortsResult> {
-  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v6`;
+  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v7`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached as unknown as ShortsResult;
 
@@ -310,27 +310,37 @@ async function fetchShorts(regionCode: string): Promise<ShortsResult> {
   const maxPerQuery = 30;
   const lang = REGIONS[regionCode]?.lang || 'en';
 
-  // Step 1: 지역 언어별 쿼리로 검색 (한국→한국어, 일본→일본어, 영어권→영어)
-  const searchResults = await Promise.all(
-    queries.map((tq) =>
-      fetchWithFallback(
-        (key) =>
-          `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&relevanceLanguage=${lang}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(tq.query)}&maxResults=${maxPerQuery}&key=${key}`
-      ).catch(() => ({ items: [] }))
-    )
-  );
+  // Step 1: 이중 검색 전략
+  // - viewCount: 조회수 높은 인기 영상 (메인스트림)
+  // - relevance: 연관도 높은 영상 (니치 토픽도 잡힘)
+  const recentDate = getRecentDate();
+  const buildUrl = (tq: { query: string }, order: string, key: string) =>
+    `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=${order}&regionCode=${regionCode}&relevanceLanguage=${lang}&publishedAfter=${recentDate}&q=${encodeURIComponent(tq.query)}&maxResults=${maxPerQuery}&key=${key}`;
+
+  const searchResults = await Promise.all([
+    // 조회수 기반 (인기 영상)
+    ...queries.map((tq) =>
+      fetchWithFallback((key) => buildUrl(tq, 'viewCount', key)).catch(() => ({ items: [] }))
+    ),
+    // 연관도 기반 (다양한 토픽 커버)
+    ...queries.map((tq) =>
+      fetchWithFallback((key) => buildUrl(tq, 'relevance', key)).catch(() => ({ items: [] }))
+    ),
+  ]);
 
   // videoId → topicTag 매핑 (첫 번째 검색 쿼리의 topic이 우선)
   const topicMap: Record<string, string> = {};
   const idSet = new Set<string>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   searchResults.forEach((res: any, qi: number) => {
+    // qi가 queries.length 이상이면 relevance 결과 → 같은 토픽 매핑
+    const topicIdx = qi % queries.length;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (res.items || []).forEach((item: any) => {
       const vid = item.id?.videoId;
       if (vid) {
         idSet.add(vid);
-        if (!topicMap[vid]) topicMap[vid] = queries[qi].topic;
+        if (!topicMap[vid]) topicMap[vid] = queries[topicIdx].topic;
       }
     });
   });
