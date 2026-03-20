@@ -1,0 +1,8 @@
+services:
+  shorts-pulse:
+    build:
+      context: ./shorts-pulse
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    restart: unless-stopped

@@ -3,10 +3,9 @@
   "configurations": [
     {
       "name": "shorts-pulse",
-      "runtimeExecutable": "C:\\Program Files\\nodejs\\npx.cmd",
-      "runtimeArgs": ["next", "dev", "--port", "3001"],
-      "port": 3001,
-      "cwd": "shorts-pulse"
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["shorts-pulse/node_modules/next/dist/bin/next", "dev", "-p", "8002", "shorts-pulse"],
+      "port": 8002
     }
   ]
 }
