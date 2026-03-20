@@ -154,7 +154,8 @@ export function clearTrendingCache(): void {
  * → 선택 지역만 전체 검색, 나머지는 핵심 4개만 검색
  */
 /** 주제별 검색 쿼리 — 각 쿼리에 topicTag 부여 */
-const TOPIC_QUERIES = [
+/** 영어권 기본 쿼리 */
+const TOPIC_QUERIES_EN = [
   { query: 'did you know amazing facts shorts', topic: '상식/팩트' },
   { query: 'vs comparison which is better shorts', topic: '비교/VS' },
   { query: 'why how science explained shorts', topic: '과학/교육' },
@@ -169,6 +170,125 @@ const TOPIC_QUERIES = [
   { query: 'technology AI robot future shorts', topic: '테크/AI' },
 ];
 
+/** 지역별 현지 언어 쿼리 — 해당 언어로 검색해야 인도 콘텐츠 안 섞임 */
+const TOPIC_QUERIES_LOCALIZED: Record<string, { query: string; topic: string }[]> = {
+  KR: [
+    { query: '몰랐던 사실 놀라운 상식 쇼츠', topic: '상식/팩트' },
+    { query: '비교 대결 뭐가 더 좋을까 쇼츠', topic: '비교/VS' },
+    { query: '왜 어떻게 과학 설명 쇼츠', topic: '과학/교육' },
+    { query: '순위 랭킹 최고 최악 쇼츠', topic: '랭킹/순위' },
+    { query: '동물 자연 야생 신기한 쇼츠', topic: '동물/자연' },
+    { query: '우주 행성 은하 블랙홀 쇼츠', topic: '우주/SF' },
+    { query: '역사 사건 전쟁 왕조 쇼츠', topic: '역사' },
+    { query: '건강 인체 의학 상식 쇼츠', topic: '건강/인체' },
+    { query: '심리 뇌과학 행동 성격 쇼츠', topic: '심리/뇌과학' },
+    { query: '나라 문화 차이 세계 쇼츠', topic: '문화/세계' },
+    { query: '음식 영양 요리 상식 쇼츠', topic: '음식/영양' },
+    { query: '기술 AI 로봇 미래 쇼츠', topic: '테크/AI' },
+  ],
+  JP: [
+    { query: '知らなかった事実 雑学 ショート', topic: '상식/팩트' },
+    { query: '比較 対決 どっちがいい ショート', topic: '비교/VS' },
+    { query: 'なぜ 科学 解説 ショート', topic: '과학/교육' },
+    { query: 'ランキング トップ 最高 最悪 ショート', topic: '랭킹/순위' },
+    { query: '動物 自然 野生 すごい ショート', topic: '동물/자연' },
+    { query: '宇宙 惑星 銀河 ショート', topic: '우주/SF' },
+    { query: '歴史 事件 戦争 ショート', topic: '역사' },
+    { query: '健康 人体 医学 ショート', topic: '건강/인체' },
+    { query: '心理 脳科学 行動 ショート', topic: '심리/뇌과학' },
+    { query: '国 文化 違い 世界 ショート', topic: '문화/세계' },
+    { query: '食べ物 栄養 料理 ショート', topic: '음식/영양' },
+    { query: '技術 AI ロボット 未来 ショート', topic: '테크/AI' },
+  ],
+  ES: [
+    { query: 'sabías que datos curiosos shorts', topic: '상식/팩트' },
+    { query: 'versus comparación cuál es mejor shorts', topic: '비교/VS' },
+    { query: 'por qué cómo ciencia explicado shorts', topic: '과학/교육' },
+    { query: 'ranking top mejor peor shorts', topic: '랭킹/순위' },
+    { query: 'animales naturaleza salvaje shorts', topic: '동물/자연' },
+    { query: 'espacio universo planetas shorts', topic: '우주/SF' },
+    { query: 'historia qué pasó explicado shorts', topic: '역사' },
+    { query: 'cuerpo humano salud datos shorts', topic: '건강/인체' },
+    { query: 'psicología mente cerebro shorts', topic: '심리/뇌과학' },
+    { query: 'países cultura mundo diferencias shorts', topic: '문화/세계' },
+    { query: 'comida nutrición cocina mitos shorts', topic: '음식/영양' },
+    { query: 'tecnología inteligencia artificial futuro shorts', topic: '테크/AI' },
+  ],
+  BR: [
+    { query: 'você sabia fatos curiosos shorts', topic: '상식/팩트' },
+    { query: 'versus comparação qual melhor shorts', topic: '비교/VS' },
+    { query: 'por que como ciência explicado shorts', topic: '과학/교육' },
+    { query: 'ranking top melhor pior shorts', topic: '랭킹/순위' },
+    { query: 'animais natureza selvagem shorts', topic: '동물/자연' },
+    { query: 'espaço universo planetas shorts', topic: '우주/SF' },
+    { query: 'história o que aconteceu shorts', topic: '역사' },
+    { query: 'corpo humano saúde fatos shorts', topic: '건강/인체' },
+    { query: 'psicologia mente cérebro shorts', topic: '심리/뇌과학' },
+    { query: 'países cultura mundo diferenças shorts', topic: '문화/세계' },
+    { query: 'comida nutrição culinária shorts', topic: '음식/영양' },
+    { query: 'tecnologia IA robô futuro shorts', topic: '테크/AI' },
+  ],
+  DE: [
+    { query: 'wusstest du erstaunliche fakten shorts', topic: '상식/팩트' },
+    { query: 'vergleich was ist besser shorts', topic: '비교/VS' },
+    { query: 'warum wie wissenschaft erklärt shorts', topic: '과학/교육' },
+    { query: 'ranking top beste schlechteste shorts', topic: '랭킹/순위' },
+    { query: 'tiere natur wildtiere shorts', topic: '동물/자연' },
+    { query: 'weltraum universum planeten shorts', topic: '우주/SF' },
+    { query: 'geschichte was ist passiert shorts', topic: '역사' },
+    { query: 'körper gesundheit medizin fakten shorts', topic: '건강/인체' },
+    { query: 'psychologie gehirn verhalten shorts', topic: '심리/뇌과학' },
+    { query: 'länder kultur welt unterschiede shorts', topic: '문화/세계' },
+    { query: 'essen ernährung kochen shorts', topic: '음식/영양' },
+    { query: 'technologie KI roboter zukunft shorts', topic: '테크/AI' },
+  ],
+  FR: [
+    { query: 'saviez-vous faits incroyables shorts', topic: '상식/팩트' },
+    { query: 'versus comparaison lequel est mieux shorts', topic: '비교/VS' },
+    { query: 'pourquoi comment science expliqué shorts', topic: '과학/교육' },
+    { query: 'classement top meilleur pire shorts', topic: '랭킹/순위' },
+    { query: 'animaux nature sauvage shorts', topic: '동물/자연' },
+    { query: 'espace univers planètes shorts', topic: '우주/SF' },
+    { query: 'histoire que s est passé shorts', topic: '역사' },
+    { query: 'corps humain santé faits shorts', topic: '건강/인체' },
+    { query: 'psychologie cerveau comportement shorts', topic: '심리/뇌과학' },
+    { query: 'pays culture monde différences shorts', topic: '문화/세계' },
+    { query: 'nourriture nutrition cuisine shorts', topic: '음식/영양' },
+    { query: 'technologie IA robot futur shorts', topic: '테크/AI' },
+  ],
+};
+
+/** MX(멕시코)는 ES(스페인)와 동일 스페인어, CH(스위스)는 DE(독일)과 동일 독일어 */
+const LOCALIZED_ALIASES: Record<string, string> = { MX: 'ES', CH: 'DE' };
+
+/** regionCode에 맞는 쿼리 반환 */
+function getTopicQueries(regionCode: string): { query: string; topic: string }[] {
+  const alias = LOCALIZED_ALIASES[regionCode] || regionCode;
+  return TOPIC_QUERIES_LOCALIZED[alias] || TOPIC_QUERIES_EN;
+}
+
+/** 비라틴 문자 감지 — 인도(힌디/타밀 등), 아랍, 태국 콘텐츠 필터 */
+const NON_TARGET_SCRIPTS = /[\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF\u0B00-\u0B7F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F\u0600-\u06FF\u0E00-\u0E7F]/;
+
+/** 해당 지역에서 허용하는 문자 스크립트 (이 문자가 있으면 통과) */
+const ALLOWED_SCRIPTS: Record<string, RegExp> = {
+  KR: /[\uAC00-\uD7AF\u3130-\u318F]/,     // 한글
+  JP: /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/, // 히라가나+가타카나+한자
+};
+
+/** 선택 지역과 무관한 콘텐츠인지 판별 */
+function isIrrelevantRegion(video: ShortVideo, regionCode: string): boolean {
+  const text = video.title + ' ' + video.channelTitle;
+  // 힌디/아랍/태국 등 비대상 문자가 포함되면 필터링
+  if (NON_TARGET_SCRIPTS.test(text)) return true;
+  // 해당 지역 전용 문자가 있으면 OK (KR→한글, JP→일본어)
+  const allowed = ALLOWED_SCRIPTS[regionCode];
+  if (allowed && !allowed.test(text)) {
+    // 영어만 있는 콘텐츠는 허용 (한국/일본에서도 영어 쇼츠 존재)
+  }
+  return false;
+}
+
 interface ShortsResult {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   items: any[];
@@ -177,16 +297,17 @@ interface ShortsResult {
 }
 
 async function fetchShorts(regionCode: string): Promise<ShortsResult> {
-  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v4`;
+  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v5`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached as unknown as ShortsResult;
 
   const maxPerQuery = 25;
   const lang = REGIONS[regionCode]?.lang || 'en';
 
-  // Step 1: 12개 주제별 병렬 검색 (relevanceLanguage로 해당 언어 콘텐츠 우선)
+  // Step 1: 지역 언어별 쿼리로 검색 (한국→한국어, 일본→일본어, 영어권→영어)
+  const queries = getTopicQueries(regionCode);
   const searchResults = await Promise.all(
-    TOPIC_QUERIES.map((tq) =>
+    queries.map((tq) =>
       fetchWithFallback(
         (key) =>
           `https://www.googleapis.com/youtube/v3/search?part=id&type=video&videoDuration=short&order=viewCount&regionCode=${regionCode}&relevanceLanguage=${lang}&publishedAfter=${getRecentDate()}&q=${encodeURIComponent(tq.query)}&maxResults=${maxPerQuery}&key=${key}`
@@ -204,7 +325,7 @@ async function fetchShorts(regionCode: string): Promise<ShortsResult> {
       const vid = item.id?.videoId;
       if (vid) {
         idSet.add(vid);
-        if (!topicMap[vid]) topicMap[vid] = TOPIC_QUERIES[qi].topic;
+        if (!topicMap[vid]) topicMap[vid] = queries[qi].topic;
       }
     });
   });
@@ -405,8 +526,8 @@ export async function fetchRegionShorts(
   const benchmarks = buildCategoryBenchmarks([...trendingProcessed, ...shortsProcessed]);
   const scored = enrichWithScores(shorts, benchmarks);
 
-  // 광고/공식 콘텐츠 필터링
-  return scored.filter((v) => !isSpamOrPromo(v));
+  // 광고/공식 콘텐츠 + 비대상 지역 콘텐츠 필터링
+  return scored.filter((v) => !isSpamOrPromo(v) && !isIrrelevantRegion(v, regionCode));
 }
 
 /** 여러 지역 한번에 (지역 비교용) */
