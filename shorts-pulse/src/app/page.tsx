@@ -6,7 +6,6 @@ import { REGIONS } from '@/lib/constants';
 import {
   loadApiKeys,
   fetchRegionShorts,
-  fetchAllRegions,
   generateMockShorts,
   saveSnapshot,
   getSnapshot,
@@ -95,19 +94,14 @@ export default function Home() {
     setCurrentDate(date);
   };
 
-  const handlePrevDay = () => {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() - 1);
-    setCurrentDate(d.toISOString().split('T')[0]);
-  };
-
-  const handleNextDay = () => {
-    const d = new Date(currentDate);
-    const today = new Date();
-    d.setDate(d.getDate() + 1);
-    if (d > today) return;
-    setCurrentDate(d.toISOString().split('T')[0]);
-  };
+  const handleMoveDay = useCallback((delta: number) => {
+    setCurrentDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + delta);
+      if (delta > 0 && d > new Date()) return prev;
+      return d.toISOString().split('T')[0];
+    });
+  }, []);
 
   const currentShorts = shortsData[currentRegion] || [];
 
@@ -122,8 +116,8 @@ export default function Home() {
           onDateChange={handleDateChange}
           onRegionChange={setCurrentRegion}
           onRefresh={handleRefresh}
-          onPrevDay={handlePrevDay}
-          onNextDay={handleNextDay}
+          onPrevDay={() => handleMoveDay(-1)}
+          onNextDay={() => handleMoveDay(1)}
         />
       </div>
 

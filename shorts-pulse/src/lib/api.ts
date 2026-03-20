@@ -61,11 +61,18 @@ async function fetchWithFallback(urlBuilder: (key: string) => string): Promise<R
         console.warn(`Key ${idx} quota exceeded. Rotating...`);
         continue;
       }
+      // 429 (rate limit) 등 일시적 에러도 다음 키 시도
+      if (json.error && (res.status === 429 || res.status >= 500)) {
+        console.warn(`Key ${idx} error ${res.status}. Rotating...`);
+        continue;
+      }
       if (json.error) throw new Error(json.error.message);
-      return json;
     } catch (err) {
       lastError = err as Error;
-      if ((err as Error).message?.includes('Failed to fetch')) continue;
+      // 네트워크 에러 또는 타임아웃 → 다음 키 시도
+      const msg = (err as Error).message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('aborted') || msg.includes('network')) continue;
+      // 그 외 복구 불가능한 에러 → 즉시 throw
       throw err;
     }
   }

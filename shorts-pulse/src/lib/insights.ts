@@ -51,7 +51,7 @@ function tokenizeTitle(title: string): { unigrams: string[]; bigrams: string[] }
   const bigrams: string[] = [];
   for (let i = 0; i < words.length - 1; i++) {
     const w1 = words[i], w2 = words[i + 1];
-    if (STOPWORDS.has(w1) && STOPWORDS.has(w2)) continue;
+    if (STOPWORDS.has(w1) || STOPWORDS.has(w2)) continue;
     if (w1.length < 2 && w2.length < 2) continue;
     bigrams.push(`${w1} ${w2}`);
   }

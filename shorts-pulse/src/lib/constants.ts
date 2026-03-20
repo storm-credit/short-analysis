@@ -58,10 +58,11 @@ export const STORAGE_KEYS = {
   SNAPSHOT_PREFIX: 'shorts_snap_',
 };
 
+// v4: Shorts 특성 반영 — 참여도↑, 속도↓ (Shorts는 알고리즘 추천 비중이 높아 engagement이 핵심 지표)
 export const SCORE_WEIGHTS = {
-  velocity: 0.30,
-  engagement: 0.25,       // 20→25% (Shorts에서 참여도 더 중요)
-  interaction: 0.10,       // 15→10% (engagement으로 가중치 이동)
+  velocity: 0.25,            // 30→25% (Shorts는 추천 기반이라 속도 덜 중요)
+  engagement: 0.30,          // 25→30% (좋아요 비율이 Shorts 알고리즘 핵심)
+  interaction: 0.10,
   viralCoefficient: 0.15,
   recency: 0.10,
   categoryOutperformance: 0.10,

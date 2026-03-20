@@ -13,14 +13,16 @@ export default function StatsBar({ shorts }: StatsBarProps) {
   const { avgScore, avgVPH, topCategory } = useMemo(() => {
     if (shorts.length === 0) return { avgScore: 0, avgVPH: 0, topCategory: '--' };
 
-    const avgS = Math.round(shorts.reduce((s, v) => s + v.viralityScore, 0) / shorts.length);
-    const avgV = Math.round(shorts.reduce((s, v) => s + v.viewsPerHour, 0) / shorts.length);
-
+    let totalScore = 0, totalVPH = 0;
     const counts: Record<string, number> = {};
     shorts.forEach((v) => {
+      totalScore += v.viralityScore;
+      totalVPH += v.viewsPerHour;
       const cat = CATEGORY_MAP[v.categoryId] || 'Other';
       counts[cat] = (counts[cat] || 0) + 1;
     });
+    const avgS = Math.round(totalScore / shorts.length);
+    const avgV = Math.round(totalVPH / shorts.length);
     const topCat = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '--';
 
     return { avgScore: avgS, avgVPH: avgV, topCategory: topCat };

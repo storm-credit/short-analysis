@@ -3,7 +3,7 @@ import { SCORE_WEIGHTS } from './constants';
 import { hoursAge } from './utils';
 
 /**
- * Virality Score Algorithm v3
+ * Virality Score Algorithm v4
  *
  * 개선사항 (v2 → v3):
  * - VPH 정규화: mean → median 기반 (이상치에 안정적)
@@ -14,12 +14,12 @@ import { hoursAge } from './utils';
  * - Recency 반감기: 48h → 24h (일일 트래킹에 적합)
  * - 소프트 캡: Math.min(100) → 로그 스케일 (상위 영상 간 변별력 유지)
  *
- * Weights (v3):
- *   Velocity (30%)
- *   Engagement Quality (25%)   ← 20→25%
- *   Audience Interaction (10%) ← 15→10% (가중치 engagement으로 이동)
+ * Weights (v4):
+ *   Velocity (25%)            ← 30→25% (Shorts는 추천 기반)
+ *   Engagement Quality (30%)  ← 25→30% (Shorts 알고리즘 핵심)
+ *   Audience Interaction (10%)
  *   Viral Coefficient (15%)
- *   Recency Boost (10%)
+ *   Recency Boost (10%)       (반감기 36h)
  *   Category Outperformance (10%)
  */
 const VELOCITY_MULTIPLIER = 50;
@@ -28,7 +28,7 @@ const INTERACTION_MULTIPLIER = 150;   // 75→150 (댓글 희소성 반영)
 const VIRAL_COEFF_MULTIPLIER = 10;
 const VIRAL_COEFF_NO_SUBS = 80;       // 구독자 0인 채널의 바이럴 부스트 점수
 const CATEGORY_MULTIPLIER = 25;
-const RECENCY_HALFLIFE_HOURS = 24;    // 48→24 (일일 트래킹에 적합)
+const RECENCY_HALFLIFE_HOURS = 36;    // 24→36 (Shorts는 48h 이내 재추천 빈번, 너무 공격적인 감쇠 방지)
 const MIN_HOURS_AGE = 0.5;            // 0.1→0.5 (30분 미만 VPH 과대평가 방지)
 
 /** 중앙값 계산 (정렬된 배열 필요) */
@@ -60,7 +60,7 @@ export function calculateViralityScore(
 
   // Factor 1: View Velocity (30%) — median VPH 기반 정규화
   const vph = video.viewCount / h;
-  const catAvgVPH = catBench?.medianVPH || catBench?.avgVPH || 5000;
+  const catAvgVPH = catBench?.medianVPH ?? catBench?.avgVPH ?? 5000;
   const velocityRaw = (vph / catAvgVPH) * VELOCITY_MULTIPLIER;
   const velocityScore = softCap(velocityRaw);
 
@@ -78,8 +78,8 @@ export function calculateViralityScore(
   // 구독자 0 = 바이럴 부스트 (채널 인지도 없이 조회수 = 강한 바이럴 신호)
   let viralCoeff: number;
   let viralScore: number;
-  if (video.subscriberCount === 0) {
-    viralCoeff = 0;
+  if (video.subscriberCount <= 0) {
+    viralCoeff = video.viewCount / 1000; // 구독자 0일 때 1000 기준 대비 비율
     viralScore = video.viewCount > 1000 ? VIRAL_COEFF_NO_SUBS : 40;
   } else {
     viralCoeff = video.viewCount / video.subscriberCount;
@@ -90,7 +90,7 @@ export function calculateViralityScore(
   const recencyScore = Math.max(0, 100 * Math.exp(-h / RECENCY_HALFLIFE_HOURS));
 
   // Factor 6: Category Outperformance (10%)
-  const catMedian = catBench?.medianViews || 100000;
+  const catMedian = catBench?.medianViews ?? 100000;
   const catRaw = (video.viewCount / catMedian) * CATEGORY_MULTIPLIER;
   const catScore = softCap(catRaw);
 
@@ -143,7 +143,7 @@ export function buildCategoryBenchmarks(videos: ShortVideo[]): Record<string, Ca
       avgVPH: d.vphs.length > 0
         ? d.vphs.reduce((a, b) => a + b, 0) / d.vphs.length
         : 1,
-      medianVPH: median(sortedVphs) || 1,
+      medianVPH: median(sortedVphs) ?? 1,
     };
   });
   return benchmarks;

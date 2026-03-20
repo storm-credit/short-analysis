@@ -30,8 +30,11 @@ export function hoursAge(dateStr: string): number {
   return Math.max(0, diff); // 미래 날짜 방어
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getThumbnail(snippet: any): string {
+interface YouTubeThumbnails {
+  thumbnails?: Record<string, { url?: string }>;
+}
+
+export function getThumbnail(snippet: YouTubeThumbnails | undefined): string {
   return snippet?.thumbnails?.maxres?.url
     || snippet?.thumbnails?.high?.url
     || snippet?.thumbnails?.medium?.url
