@@ -302,7 +302,7 @@ interface ShortsResult {
 }
 
 async function fetchShorts(regionCode: string): Promise<ShortsResult> {
-  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v5`;
+  const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${regionCode}_shorts_v6`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached as unknown as ShortsResult;
 
@@ -360,10 +360,10 @@ async function fetchShorts(regionCode: string): Promise<ShortsResult> {
   return result;
 }
 
-/** 최근 3일 이내 발행된 영상만 검색 */
+/** 최근 7일 이내 발행된 영상만 검색 (3일→7일: 바이럴 쇼츠는 보통 2~5일 내 폭발) */
 function getRecentDate(): string {
   const d = new Date();
-  d.setDate(d.getDate() - 3);
+  d.setDate(d.getDate() - 7);
   return d.toISOString();
 }
 
