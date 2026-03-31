@@ -10,22 +10,21 @@ interface SettingsProps {
 
 export default function Settings({ onKeysChanged }: SettingsProps) {
   const [keys, setKeys] = useState<string[]>(['']);
-  const [keyCount, setKeyCount] = useState(0);
   const [toast, setToast] = useState('');
   const [showKeys, setShowKeys] = useState<Record<number, boolean>>({});
+
+  const keyCount = keys.filter((k) => k.trim()).length;
 
   useEffect(() => {
     const stored = loadApiKeys();
     if (stored.length > 0) {
       setKeys(stored);
     }
-    setKeyCount(stored.length);
   }, []);
 
   const handleSave = () => {
     const validKeys = keys.filter((k) => k.trim());
     saveApiKeys(validKeys);
-    setKeyCount(getApiKeyCount());
     setToast(`${validKeys.length}개 API 키 저장됨 — 병렬 로테이션 활성`);
     setTimeout(() => setToast(''), 3000);
     onKeysChanged();

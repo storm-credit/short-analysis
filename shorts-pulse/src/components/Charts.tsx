@@ -48,7 +48,7 @@ export default function Charts({ shorts }: ChartsProps) {
   // Virality Distribution
   const bins = [0, 0, 0, 0, 0];
   shorts.forEach((v) => {
-    const idx = Math.min(4, Math.floor(v.viralityScore / 20));
+    const idx = Math.min(4, Math.max(0, Math.floor(v.viralityScore / 20)));
     bins[idx]++;
   });
 

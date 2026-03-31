@@ -457,7 +457,7 @@ function filterShorts(videos: ShortVideo[]): ShortVideo[] {
 function enrichWithScores(videos: ShortVideo[], benchmarks: Record<string, CategoryBenchmark>): ShortVideo[] {
   videos.forEach((v) => {
     const h = hoursAge(v.publishedAt);
-    v.viewsPerHour = h < 0.5 ? v.viewCount : Math.round(v.viewCount / h);
+    v.viewsPerHour = h < 0.5 ? v.viewCount : Math.round(v.viewCount / Math.max(h, 0.01));
     v.engagementRate = v.viewCount > 0 ? (v.likeCount + v.commentCount) / v.viewCount * 100 : 0;
     const result = calculateViralityScore(v, benchmarks[v.categoryId]);
     v.viralityScore = result.total;

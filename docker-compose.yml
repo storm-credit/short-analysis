@@ -4,5 +4,15 @@ services:
       context: ./shorts-pulse
       dockerfile: Dockerfile
     ports:
-      - "8002:8002"
+      - "9002:9002"
     restart: unless-stopped
+
+  analytics:
+    build:
+      context: ./analytics
+      dockerfile: Dockerfile
+    volumes:
+      - ./analytics/secrets:/app/secrets:ro
+      - ./analytics/data:/app/data
+    profiles:
+      - analytics
