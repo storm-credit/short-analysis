@@ -287,10 +287,7 @@ function isIrrelevantRegion(video: ShortVideo, regionCode: string): boolean {
   // 힌디/아랍/태국 등 비대상 문자가 포함되면 필터링
   if (NON_TARGET_SCRIPTS.test(text)) return true;
   // 해당 지역 전용 문자가 있으면 OK (KR→한글, JP→일본어)
-  const allowed = ALLOWED_SCRIPTS[regionCode];
-  if (allowed && !allowed.test(text)) {
-    // 영어만 있는 콘텐츠는 허용 (한국/일본에서도 영어 쇼츠 존재)
-  }
+  // 영어만 있는 콘텐츠도 허용 (한국/일본에서도 영어 쇼츠 존재)
   return false;
 }
 

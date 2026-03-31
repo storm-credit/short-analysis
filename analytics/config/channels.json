@@ -1,0 +1,22 @@
+{
+  "askanything": {
+    "language": "ko",
+    "token_file": "secrets/askanything_token.json",
+    "channel_id": "YOUR_CHANNEL_ID_1"
+  },
+  "wonderdrop": {
+    "language": "en",
+    "token_file": "secrets/wonderdrop_token.json",
+    "channel_id": "YOUR_CHANNEL_ID_2"
+  },
+  "exploratodo": {
+    "language": "es",
+    "token_file": "secrets/exploratodo_token.json",
+    "channel_id": "YOUR_CHANNEL_ID_3"
+  },
+  "seasonxi": {
+    "language": "en",
+    "token_file": "secrets/seasonxi_token.json",
+    "channel_id": "YOUR_CHANNEL_ID_4"
+  }
+}

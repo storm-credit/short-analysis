@@ -43,7 +43,7 @@ export const ASKANYTHING_CATEGORIES = ['27', '28', '22', '24', '26'];
 export const QA_STYLE_KEYWORDS = [
   'vs', 'versus', 'which', 'what', 'why', 'how', 'did you know',
   'compare', 'better', 'best', 'worst', 'top', 'ranking',
-  '왜', '어떻게', '뭐가', '비교', '최고', '최악', 'vs',
+  '왜', '어떻게', '뭐가', '비교', '최고', '최악',
   '알고 계셨', '몰랐던', '차이', 'difference', 'truth',
   'secret', 'fact', 'myth', 'real reason', 'actually',
 ];

@@ -28,10 +28,21 @@ YouTube Shorts 바이럴 분석 대시보드. Next.js 15 + TypeScript + Tailwind
 - 스팸/프로모 콘텐츠 필터 (official, MV, trailer, VEVO 등)
 - 토픽 기반 카테고리 사용 (YouTube categoryId 대신 검색쿼리 매핑)
 
+## Analytics Backend (Python)
+- `analytics/` — 채널 성과 수집/분석 (Python)
+- `analytics/config/channels.json` — 채널 4개 등록 (askanything, wonderdrop, exploratodo, seasonxi)
+- `analytics/src/clients/` — YouTube Data API + Analytics API 클라이언트
+- `analytics/src/services/` — 비즈니스 로직 (채널 레지스트리, 메트릭 수집)
+- `analytics/src/storage/sqlite.py` — SQLite DB (A/B 테스트용 스키마)
+- `analytics/src/scripts/` — 실행 스크립트
+- `analytics/secrets/` — OAuth 토큰 (gitignore됨)
+- `analytics/data/` — SQLite DB 파일 (gitignore됨)
+
 ## Dev Commands
 ```bash
-cd shorts-pulse && npm run dev -- -p 8002   # 개발 서버
+cd shorts-pulse && npm run dev -- -p 8002   # 프론트엔드 개발 서버
 cd shorts-pulse && npm run build             # 빌드 확인
+cd analytics && python -m src.scripts.analyze_recent_videos  # 채널 성과 수집
 ```
 
 ## Common Issues
