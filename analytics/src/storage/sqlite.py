@@ -63,7 +63,24 @@ class MetricsDB:
         )
         """)
 
+        self.conn.execute("""
+        CREATE TABLE IF NOT EXISTS video_metadata (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_name TEXT NOT NULL,
+            video_id TEXT NOT NULL UNIQUE,
+            topic_id TEXT,
+            title_variant TEXT,
+            thumbnail_variant TEXT,
+            format_type TEXT,
+            language TEXT,
+            manual_label TEXT,
+            notes TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
         # 인덱스
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_vmd_video ON video_metadata(video_id)")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_vm_channel ON video_metrics(channel_name)")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_vm_topic ON video_metrics(topic_id)")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_vm_format ON video_metrics(format_type)")
@@ -134,3 +151,52 @@ class MetricsDB:
             row.get("manual_label"),
         ))
         self.conn.commit()
+
+    def upsert_video_metadata(self, row: dict) -> None:
+        """수동 메타데이터 저장/갱신 (video_id 기준 UPSERT)."""
+        self.conn.execute("""
+        INSERT INTO video_metadata (
+            channel_name, video_id, topic_id, title_variant,
+            thumbnail_variant, format_type, language, manual_label, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(video_id) DO UPDATE SET
+            topic_id = excluded.topic_id,
+            title_variant = excluded.title_variant,
+            thumbnail_variant = excluded.thumbnail_variant,
+            format_type = excluded.format_type,
+            language = excluded.language,
+            manual_label = excluded.manual_label,
+            notes = excluded.notes,
+            updated_at = CURRENT_TIMESTAMP
+        """, (
+            row["channel_name"],
+            row["video_id"],
+            row.get("topic_id"),
+            row.get("title_variant"),
+            row.get("thumbnail_variant"),
+            row.get("format_type"),
+            row.get("language"),
+            row.get("manual_label"),
+            row.get("notes"),
+        ))
+        self.conn.commit()
+
+    def get_video_metadata(self, video_id: str) -> dict | None:
+        """video_id로 수동 메타데이터 조회."""
+        cur = self.conn.execute("""
+        SELECT topic_id, title_variant, thumbnail_variant,
+               format_type, language, manual_label, notes
+        FROM video_metadata WHERE video_id = ?
+        """, (video_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "topic_id": row[0],
+            "title_variant": row[1],
+            "thumbnail_variant": row[2],
+            "format_type": row[3],
+            "language": row[4],
+            "manual_label": row[5],
+            "notes": row[6],
+        }
